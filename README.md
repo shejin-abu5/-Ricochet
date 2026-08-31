@@ -4,7 +4,7 @@
 
 Ricochet takes a casual pickup game from "does anyone want to play Saturday?" all the way to a scheduled, refereed tournament with standings — in one product. Players discover and join open matches near them. Captains register a club, recruit players through invites and join requests, and manage the roster. Free agents list themselves on a transfer market where clubs bid for them in a timed auction. Organisers spin up a knockout or round-robin tournament, invite teams, and let results feed the bracket automatically.
 
-Inspired by [Playo](https://playo.co/), extended with the competitive layer that pickup apps leave out.
+**Status:** Actively in progress. Auth, matches, teams, and tournaments are fully working end-to-end; the player transfer market is designed and mid-build (see [Roadmap](#roadmap)).
 
 ## What it does
 
@@ -78,7 +78,7 @@ src/
 | Match creation, discovery, filtering, join/leave, full match lifecycle | ✅ Shipped |
 | Teams, rosters, invites, captain permissions, team management | ✅ Shipped |
 | Tournaments — creation, brackets, result recording, standings | ✅ Shipped |
-| Player transfer market and live bidding | Designed — build pending |
-| Account and notification settings | Planned |
+| Player transfer market and live bidding | 🚧 Designed — build in progress |
+| Account and notification settings | ⏳ Planned |
 
 Payments, live streaming and native mobile apps are deliberately out of scope; the web app is responsive-first.
