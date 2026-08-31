@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Tells the browser this page is dark BEFORE any CSS loads, so the
+         first paint isn't a white flash. -->
+    <meta name="color-scheme" content="dark" />
+    <title>Ricochet</title>
+
+    <!--
+      Inter, loaded from Google Fonts.
+
+      preconnect opens the TLS connection to the font host early, in parallel
+      with parsing the rest of the head, instead of waiting until the
+      stylesheet below is fetched and parsed. Saves a round trip on first load.
+      crossorigin is required on the gstatic one because fonts are fetched in
+      CORS mode — without it the browser opens a second, unused connection.
+
+      display=swap means text renders immediately in a fallback font and swaps
+      to Inter when it arrives, rather than being invisible while it loads.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

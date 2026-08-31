@@ -1,0 +1,428 @@
+@import "tailwindcss";
+
+/**
+ * ============================================================
+ *  DESIGN TOKENS — the one place to change how the app looks
+ * ============================================================
+ *
+ * Everything visual is defined here and NOWHERE ELSE. No component contains a
+ * raw hex value. Change --color-primary below and every button, badge, link
+ * and focus ring in the app changes with it.
+ *
+ * ---- WHY THIS AND NOT SCSS VARIABLES ----
+ *
+ * This is Tailwind v4. Utility classes like `bg-primary` are GENERATED from
+ * this @theme block — Tailwind reads these custom properties at build time and
+ * emits a utility for each one. A Sass variable ($primary: #d2ff00) lives in a
+ * different world: Tailwind never sees it, so `bg-primary` would keep its old
+ * value and the token would silently do nothing.
+ *
+ * These ARE the variables. They're just CSS custom properties rather than Sass
+ * ones — which also means they're readable at runtime in devtools, and can be
+ * overridden per-scope later if we ever want theming.
+ *
+ * (The skill's `color-semantic` rule says the same thing: define semantic
+ * tokens — primary, surface, on-surface — never raw hex in components.)
+ *
+ * ---- NAMING: SEMANTIC, NOT LITERAL ----
+ *
+ * `--color-primary`, not `--color-lime`. `--color-danger`, not `--color-red`.
+ * The name says what the colour is FOR, so switching the brand colour later
+ * doesn't leave the codebase full of `bg-lime` classes that render blue.
+ */
+@theme {
+  /* ---------- Brand ----------------------------------------------------- */
+
+  --color-primary: #d2ff00;
+  --color-primary-hover: #bdec00;
+
+  /**
+   * Text/icon colour to use ON a primary-filled surface.
+   *
+   * This token is not optional decoration — it's a contrast requirement.
+   * #d2ff00 is extremely bright (relative luminance 0.85), so:
+   *
+   *   white on #d2ff00      →  1.16:1   unreadable, fails WCAG badly
+   *   #0d0d0d on #d2ff00    → 16.70:1   excellent
+   *
+   * Any time you write `bg-primary`, pair it with `text-on-primary`.
+   */
+  --color-on-primary: #0d0d0d;
+
+  /**
+   * The brand gradient — the auth panel's whole visual identity.
+   *
+   * ---- WHY A GRADIENT AND NOT A FLAT LIME FIELD ----
+   *
+   * A single-hue ramp (#d2ff00 -> darker #d2ff00) isn't a gradient, it's a
+   * dimmer. What makes a gradient read as one is travelling across HUE. So
+   * this one goes 68deg (yellow-green) -> 142deg (green): lime at the top,
+   * cooling into the success green at the bottom.
+   *
+   * Both ENDS are existing tokens, which is the point — the panel can't drift
+   * away from the palette, because it's built out of it. Only the two middle
+   * stops are new, and they exist purely to make the journey smooth.
+   *
+   * ---- WHY THIS MUCH LIME IS ALLOWED HERE ----
+   *
+   * docs/13-visual-pass-notes.md says solid lime is for ONE action per screen.
+   * That rule governs screens full of competing actionable UI, where emphasis
+   * only works if it's scarce. An auth panel contains zero actions — it's a
+   * brand moment, seen once, with nothing to compete against. Different job,
+   * different rule.
+   *
+   * ---- THE CONTRAST CONSEQUENCE ----
+   *
+   * Every stop here is LIGHT (luminance 0.62-0.85). Anything placed on top of
+   * this gradient must use --color-on-primary, never white:
+   *   white   on #d2ff00  ->  1.16:1  invisible
+   *   #0d0d0d on #d2ff00  -> 16.70:1  fine
+   *   #0d0d0d on #4ade80  -> ~12:1    fine
+   */
+  --gradient-brand: linear-gradient(
+    160deg,
+    var(--color-primary) 0%,
+    #a3e635 38%,
+    #84cc16 68%,
+    var(--color-success) 100%
+  );
+
+  /* ---------- Surfaces -------------------------------------------------- */
+
+  /**
+   * A four-step elevation scale, darkest to lightest. Using a fixed scale
+   * rather than ad-hoc greys is what keeps depth consistent across screens
+   * (the skill's `elevation-consistent` rule).
+   *
+   * canvas    the page itself
+   * surface   cards, sidebar — the default raised plane
+   * raised    controls sitting ON a card: inputs, chips, avatars
+   * hover     hover/pressed state for raised things
+   */
+  --color-canvas: #0d0d0d;
+  --color-surface: #161616;
+  --color-raised: #1e1e1e;
+  --color-hover: #262626;
+
+  --color-border: #262626;
+  --color-border-strong: #383838;
+
+  /* ---------- Text ------------------------------------------------------ */
+
+  /**
+   * Contrast against --color-canvas, measured:
+   *   content        #f5f5f5  →  17.4:1   (needs ≥4.5:1) ✅
+   *   content-muted  #9ca3af  →   7.6:1   (needs ≥4.5:1) ✅
+   *   content-faint  #6b7280  →   4.0:1   decorative ONLY — never body text
+   *
+   * content-faint exists for things like disabled hints and "Open spot"
+   * placeholder rows. If real information is in it, use content-muted instead.
+   */
+  --color-content: #f5f5f5;
+  --color-content-muted: #9ca3af;
+  --color-content-faint: #6b7280;
+
+  /* ---------- Status ---------------------------------------------------- */
+
+  /**
+   * Each status has a text colour and a matching low-opacity surface for
+   * badges. Defined as pairs so a badge can never end up with, say, success
+   * text on a danger background.
+   *
+   * NOTE: none of these are orange, per the brief. Warning is amber, which is
+   * as close as it gets and is needed for "pending"/"closing soon" states.
+   */
+  --color-success: #4ade80;
+  --color-success-surface: #14311f;
+  --color-info: #60a5fa;
+  --color-info-surface: #152438;
+  --color-warning: #fbbf24;
+  --color-warning-surface: #33280d;
+  --color-danger: #f87171;
+  --color-danger-surface: #391a1a;
+
+  /* ---------- Typography ------------------------------------------------ */
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /**
+   * Type scale. Body stays at 16px — the skill's `readable-font-size` rule,
+   * and below 16px iOS Safari auto-zooms when you focus an input, which yanks
+   * the layout around.
+   *
+   * Line heights are bundled with each size (the `--text-*--line-height`
+   * convention in Tailwind v4), so `text-body` sets both at once and nobody
+   * has to remember to add `leading-relaxed`.
+   */
+  /**
+   * The top of the scale, for the one thing a detail page is ABOUT.
+   *
+   * Added because the scale used to stop at display/28px, which is only 1.75x
+   * the 16px body — a nudge, not a hierarchy. On a page whose whole job is to
+   * present a single subject, the subject has to win decisively, and the
+   * cheapest way to make something win is size.
+   *
+   * Applied as `text-display sm:text-hero`: 36px is right on a laptop and too
+   * wide on a 375px phone, where a three-word title would wrap to three lines.
+   */
+  --text-hero: 2.25rem;         /* 36px — the subject of a detail page */
+  --text-hero--line-height: 2.5rem;
+  --text-hero--font-weight: 700;
+  --text-hero--letter-spacing: -0.025em;
+
+  --text-display: 1.75rem;      /* 28px — page titles */
+  --text-display--line-height: 2.125rem;
+  --text-display--font-weight: 700;
+  --text-display--letter-spacing: -0.02em;
+
+  --text-heading: 1.125rem;     /* 18px — section headings */
+  --text-heading--line-height: 1.5rem;
+  --text-heading--font-weight: 600;
+
+  --text-title: 1rem;           /* 16px — card titles */
+  --text-title--line-height: 1.375rem;
+  --text-title--font-weight: 600;
+
+  --text-body: 1rem;            /* 16px */
+  --text-body--line-height: 1.5rem;
+
+  --text-meta: 0.875rem;        /* 14px — supporting text */
+  --text-meta--line-height: 1.25rem;
+
+  --text-label: 0.75rem;        /* 12px — badges, tags. Never body copy. */
+  --text-label--line-height: 1rem;
+  --text-label--font-weight: 600;
+  --text-label--letter-spacing: 0.04em;
+
+  /* ---------- Radii ----------------------------------------------------- */
+
+  --radius-card: 0.75rem;       /* 12px */
+  --radius-control: 0.5rem;     /* 8px  — buttons, inputs */
+  --radius-pill: 9999px;
+
+  /* ---------- Motion ---------------------------------------------------- */
+
+  /**
+   * The auth screen's form swap: fade up as the new form arrives.
+   *
+   * Declaring it here rather than inline gives it a NAME, which is the point —
+   * `animate-form-in` says what it's for, and if a second swapping surface
+   * ever wants the same feel it gets the same 220ms instead of a hand-picked
+   * near-miss. That's the `motion-consistency` rule: one rhythm, defined once.
+   *
+   * 220ms sits in the 150-300ms band for micro-interactions. Faster reads as a
+   * flicker; slower and you're waiting on the UI to catch up with your click.
+   *
+   * ease-out (not ease-in, not linear) because the element is ENTERING: it
+   * should arrive quickly and settle, rather than creep in and snap.
+   *
+   * The 6px rise is deliberately tiny. Motion here is confirming "this content
+   * was replaced" — it is not a journey across the screen.
+   *
+   * No prefers-reduced-motion branch is needed: the global rule in the base
+   * layer below already clamps every animation-duration to 0.01ms.
+   */
+  --animate-form-in: form-in 220ms ease-out;
+
+  /**
+   * The easing curve for things that POP: the account menu, and any popover
+   * that follows it.
+   *
+   * ---- WHY NOT JUST USE `ease-out` ----
+   *
+   * CSS's built-in `ease-out` is cubic-bezier(0, 0, 0.58, 1) — a gentle curve
+   * that spends most of its time near the end. On a 150ms popover that reads
+   * as slightly mushy: the panel drifts into place rather than arriving.
+   *
+   * This curve front-loads far more of the distance into the first few frames,
+   * so the panel is essentially THERE immediately and then settles. Same
+   * duration, noticeably more responsive — because what the eye reads as
+   * "fast" is how much happened in the first 50ms, not the total time.
+   *
+   * ---- WHY IT'S CALLED `pop` AND NOT `out` ----
+   *
+   * Naming this `--ease-out` would GENERATE a utility called `ease-out` that
+   * shadows Tailwind's built-in one, silently changing every existing
+   * `ease-out` in the app. A new name adds a utility instead of hijacking one.
+   *
+   * Used as `ease-pop`. Never use `ease-in` for UI that's entering — it starts
+   * slow, which is the one moment the user is actually watching.
+   */
+  --ease-pop: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /**
+   * ---- THE ANIMATED NAV ICONS ----
+   *
+   * The brief was "I want Lordicon-style animated icons". Lordicon ships
+   * Lottie files, which would have meant the lottie-web runtime (~250KB, on a
+   * bundle Vite is already warning about), a second icon family alongside
+   * Phosphor, a footer credit line the free licence requires — and, worst of
+   * all, colours set per-icon in markup via a `colors` attribute, which routes
+   * around --color-primary. That last one is the rule this entire file exists
+   * to enforce.
+   *
+   * What Lordicon's nav icons actually DO on hover is short and mechanical: a
+   * hop, a swap, a tilt. That's four keyframe blocks. So the icons stay
+   * Phosphor, the colour stays a token, and the motion is written here.
+   *
+   * ---- WHY EACH ONE IS DIFFERENT ----
+   *
+   * A single shared "wiggle" on all four would be decoration. Each of these
+   * animates the thing the icon MEANS — the house settles onto its ground,
+   * the transfer arrows trade places, the trophy is nudged like a real object
+   * on a shelf, the group of people leans in. The `motion-meaning` rule: an
+   * animation should express something, not just move.
+   *
+   * ---- WHY THEY ALL END WHERE THEY STARTED ----
+   *
+   * Every one of these returns to its identity transform. The icon must not
+   * be left displaced when the animation finishes, or a slow mouse leaves the
+   * nav visibly crooked.
+   *
+   * ~400ms is longer than the 150-300ms UI band, deliberately: these are
+   * decorative flourishes on hover, not feedback the user is waiting on.
+   * Nothing is blocked while they play.
+   *
+   * Applied as `group-hover:animate-icon-hop`. Tailwind v4 already wraps
+   * `hover:` and `group-hover:` in `@media (hover: hover)`, so these never
+   * fire from a tap on a touchscreen — which is what the `hover-vs-tap` rule
+   * asks for, at no cost to us.
+   *
+   * prefers-reduced-motion needs no branch here either: the global rule in the
+   * base layer below clamps every animation-duration in the app to 0.01ms.
+   */
+  --animate-icon-hop: icon-hop 420ms var(--ease-pop);
+  --animate-icon-lean: icon-lean 420ms var(--ease-pop);
+  --animate-icon-swap: icon-swap 460ms var(--ease-pop);
+  --animate-icon-tilt: icon-tilt 460ms var(--ease-pop);
+}
+
+/* Home — the house lifts and settles back onto its ground, with a small
+   overshoot below the line so it reads as landing rather than sliding. */
+@keyframes icon-hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-3px);
+  }
+  70% {
+    transform: translateY(1px);
+  }
+}
+
+/* Teams — the group leans in and grows very slightly, like turning to face
+   you. Scale stays under 1.15; anything more reads as a zoom, not a lean. */
+@keyframes icon-lean {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  45% {
+    transform: scale(1.12) rotate(-6deg);
+  }
+}
+
+/* Transfer Market — the two arrows trade places. The icon is a single SVG so
+   the halves can't move independently; sliding the whole glyph right then
+   left reads as the same exchange. */
+@keyframes icon-swap {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  30% {
+    transform: translateX(3px);
+  }
+  65% {
+    transform: translateX(-3px);
+  }
+}
+
+/* Tournaments — the trophy is knocked and rights itself, the way a real
+   object on a shelf would. Rotation only; a trophy doesn't change size. */
+@keyframes icon-tilt {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  30% {
+    transform: rotate(-10deg);
+  }
+  65% {
+    transform: rotate(7deg);
+  }
+}
+
+@keyframes form-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer base {
+  /**
+   * `color-scheme: dark` tells the BROWSER we're dark. Without it, native
+   * widgets we don't style — scrollbars, date/time pickers, autofill
+   * backgrounds, the <select> dropdown list — render in light mode and look
+   * broken against everything else. One line, fixes a whole category of
+   * "why is that box white" bugs.
+   */
+  html {
+    color-scheme: dark;
+    background-color: var(--color-canvas);
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-content);
+    font-family: var(--font-sans);
+    /* Slightly thinner strokes; on dark backgrounds the default rendering
+       makes light text look bolder than it should. */
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /**
+   * A visible focus ring on everything focusable, defined once.
+   *
+   * `:focus-visible` (not `:focus`) means it appears for keyboard users and
+   * not on mouse clicks — so we get accessibility without the "ugly outline
+   * after clicking a button" that makes people delete focus styles entirely.
+   *
+   * Removing focus rings is the single most common accessibility failure in
+   * web UI, and it makes an app unusable without a mouse.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  /**
+   * Numbers in fixed-width figures wherever they're compared or counted —
+   * scores, "7/10", prize amounts. Without this, proportional digits change
+   * width as they change value and the layout twitches.
+   */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /**
+   * Respect the OS "reduce motion" setting. Some people get motion sickness
+   * from UI animation; this is not a nice-to-have.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

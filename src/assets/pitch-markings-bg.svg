@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300">
+  <!--
+    Panoramic pitch markings, for use as a full-bleed card background.
+    Reference: docs/SS/cardMarkingBg.png
+
+    ==== HOW THIS DIFFERS FROM venue-placeholder.svg ====
+
+    That file draws a WHOLE pitch inside a 48px square: a diagram, legible as
+    "this is a football pitch" at thumbnail size. This one draws a CLOSE CROP of
+    a pitch at banner proportions, so at any size you only ever see a fragment.
+
+    That is the entire reason it exists as a second file. Zooming the thumbnail
+    up to a background gives you a small complete pitch floating in a wide box,
+    which reads as a picture of something. A crop reads as texture, because the
+    eye cannot finish tracing it and stops trying to decode it.
+
+    ==== WHY 1200x300 AND NOT SOMETHING TALLER ====
+
+    The card this sits behind is about 790x120, which is roughly 6.5:1. The
+    consumer scales this with background-size cover, which fills the width and
+    then crops the overflow off the top and bottom. So the TALLER this artwork
+    is, the more of it gets thrown away.
+
+    The first attempt was 1200x400. At the card's width that renders 264px tall
+    inside a 120px window, discarding more than half the composition and leaving
+    a thin band that happened to contain almost nothing but vertical lines.
+    4:1 keeps the centre circle and both goalmouths inside the visible slice.
+
+    Measure the box before choosing the aspect ratio: cover crops the dimension
+    you did not plan for.
+
+    ==== GEOMETRY NOTES ====
+
+    Shapes deliberately extend well past the viewBox on every side (x from -120
+    to 1320, y from -60 to 360). Two reasons: the whole group is rotated, which
+    would otherwise pull empty wedges into the corners, and cover crops
+    unpredictably depending on the card's aspect ratio. Overdrawing is what
+    guarantees the markings always run off the edges instead of stopping inside
+    them.
+
+    The 4 degree rotation is doing real work: perfectly horizontal box lines
+    read as a UI element (a divider, a border) and pull the eye. Off-axis, they
+    read as a photograph of a pitch.
+
+    ==== COLOUR ====
+
+    Hard-coded #d2ff00 rather than a token, because an <img> or a CSS background
+    loads in its own document and cannot see the host page's CSS custom
+    properties. It is a copy of color primary; if the brand colour changes, edit
+    this file by hand.
+
+    Strokes are at FULL opacity on purpose. Fading belongs to the caller, so
+    that the opacity it sets is the opacity it gets. Pre-fading here would
+    multiply with the container's value and make the result far dimmer than the
+    number in the class name suggests. That mistake cost a round on the corner
+    watermark this replaced, so it is written down here.
+
+    Careful editing these comments: an XML comment may not contain a double
+    hyphen, so token names are written without their leading dashes. A stray
+    pair of them makes the file fail to parse and the browser renders a broken
+    image icon.
+  -->
+  <g transform="rotate(-4 600 150)" fill="none" stroke="#d2ff00" stroke-width="4">
+    <!-- Halfway line and centre circle. -->
+    <line x1="600" y1="-60" x2="600" y2="360"/>
+    <circle cx="600" cy="150" r="100"/>
+    <circle cx="600" cy="150" r="6" fill="#d2ff00" stroke="none"/>
+
+    <!-- Left goalmouth: penalty area, six yard box, D, penalty spot. Each open
+         path runs off the left edge rather than closing, so no box ever reads
+         as a complete rectangle sitting inside the card. -->
+    <path d="M-120 30 H150 V270 H-120"/>
+    <path d="M-120 95 H40 V205 H-120"/>
+    <path d="M150 105 A 62 62 0 0 1 150 195"/>
+    <circle cx="90" cy="150" r="5" fill="#d2ff00" stroke="none"/>
+
+    <!-- Right goalmouth, mirrored. The arc sweeps the other way (flag 0 rather
+         than 1) so it bulges away from the goal line, as a real D does. -->
+    <path d="M1320 30 H1050 V270 H1320"/>
+    <path d="M1320 95 H1160 V205 H1320"/>
+    <path d="M1050 105 A 62 62 0 0 0 1050 195"/>
+    <circle cx="1110" cy="150" r="5" fill="#d2ff00" stroke="none"/>
+  </g>
+</svg>
