@@ -1,4 +1,5 @@
 import type { MatchFilters as Filters, MatchFormat } from '../types'
+import { MatchQuickFilter, type QuickFilter } from './MatchQuickFilter'
 
 interface MatchFiltersProps {
   filters: Filters
@@ -80,18 +81,75 @@ export function MatchFilters({
     onFilterChange({ ...filters, date: filters.date === date ? undefined : date })
   }
 
-  const noFilters = !filters.format && !filters.date
+  /**
+   * ---- CONVERTING AT THE BOUNDARY ----
+   *
+   * The dropdown speaks three values ('all' | 'available' | 'night'); the
+   * filter object stores two, plus absence. A <select> has to render SOME
+   * value — there is no such thing as a dropdown showing nothing — while the
+   * filters object already has a perfectly good word for "don't narrow by
+   * this", and it is `undefined`, same as `format`, `date` and `q`.
+   *
+   * Rather than bend either side to match the other, translate here, in the
+   * one place that touches both:
+   *
+   *   IN   filters.show ?? 'all'                absence → 'all'
+   *   OUT  next === 'all' ? undefined : next    'all'   → absence
+   *
+   * The payoff for NOT storing 'all' shows up two files away: DiscoverPage's
+   * URL writer deletes falsy values, so picking "Any match" cleans ?show= out
+   * of the address bar by itself. If 'all' were storable there would be two
+   * spellings of "no filter", every reader downstream would have to check for
+   * both, and the URL would carry a meaningless ?show=all.
+   */
+  const handleShowChange = (next: QuickFilter) => {
+    onFilterChange({ ...filters, show: next === 'all' ? undefined : next })
+  }
+
+  /**
+   * `show` belongs in here too. Without it the "All matches" chip sits there
+   * glowing active while the dropdown quietly hides half the list — the UI
+   * contradicting itself.
+   *
+   * This line is a standing maintenance cost: every new filter has to be added
+   * to it, nothing errors when you forget, and the only symptom is a chip that
+   * lies. Its twin is `hasFilters` in DiscoverPage.tsx.
+   */
+  const noFilters = !filters.format && !filters.date && !filters.show
 
   return (
     <div className="flex flex-col gap-3">
-      <input
-        type="search"
-        value={searchValue}
-        onChange={(e) => onSearchChange(e.target.value)}
-        placeholder="Search by title or location"
-        aria-label="Search matches"
-        className="min-h-11 w-full rounded-control border border-border bg-raised px-3 text-body text-content placeholder:text-content-faint"
-      />
+      {/**
+       * Search and the quick filter share a row: stacked on a phone, side by
+       * side from `sm` up.
+       *
+       * The dropdown deliberately does NOT go in the chip row below. That row
+       * is `overflow-x-auto` — it scrolls sideways on a narrow screen — so a
+       * select inside it can scroll out of reach, and dragging to open a
+       * native picker fights the horizontal scroll gesture.
+       *
+       * flex-1 on the input, shrink-0 on the select: when space runs out the
+       * SEARCH BOX gives up width. A search box degrades gracefully at any
+       * width; a dropdown with a clipped label does not.
+       */}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input
+          type="search"
+          value={searchValue}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search by title or location"
+          aria-label="Search matches"
+          className="min-h-11 w-full flex-1 rounded-control border border-border bg-raised px-3 text-body text-content placeholder:text-content-faint"
+        />
+
+        {/* Width is passed IN rather than baked into the component — layout is
+            the parent's job. Same contract as GlobalSearch. */}
+        <MatchQuickFilter
+          value={filters.show ?? 'all'}
+          onChange={handleShowChange}
+          className="shrink-0 sm:w-48"
+        />
+      </div>
 
       {/**
        * overflow-x-auto so the chip row scrolls sideways on a narrow phone
@@ -109,11 +167,14 @@ export function MatchFilters({
         {/* "All matches" is a chip like the others, active when nothing else
             is — matching the reference. It gives people an obvious way BACK to
             the unfiltered list, rather than having to remember that tapping an
-            active chip clears it. */}
+            active chip clears it. It clears `show` too, so it cannot leave the
+            dropdown narrowing a list it claims is unfiltered. */}
         <Chip
           label="All matches"
           isActive={noFilters}
-          onClick={() => onFilterChange({ ...filters, format: undefined, date: undefined })}
+          onClick={() =>
+            onFilterChange({ ...filters, format: undefined, date: undefined, show: undefined })
+          }
         />
 
         {dateOptions.map((option) => (

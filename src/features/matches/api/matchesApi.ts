@@ -24,6 +24,9 @@ export async function fetchMatches(filters: MatchFilters): Promise<Match[]> {
   if (filters.format) params.set('format', filters.format)
   if (filters.date) params.set('date', filters.date)
   if (filters.q) params.set('q', filters.q)
+  // Absent when the dropdown is on "Any match", because MatchFilters turns
+  // that option back into `undefined` before it ever reaches here.
+  if (filters.show) params.set('show', filters.show)
   // Only sent when it's 'past'. The server already defaults to 'upcoming', so
   // sending it explicitly would just make every ordinary URL longer for no
   // change in behaviour.

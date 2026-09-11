@@ -35,6 +35,21 @@ export function DiscoverPage() {
     format: (searchParams.get('format') as MatchFormat | null) ?? undefined,
     date: (searchParams.get('date') as 'today' | 'week' | null) ?? undefined,
     q: searchParams.get('q') ?? undefined,
+    /**
+     * The quick-filter dropdown. Same `?? undefined` conversion as the three
+     * above: searchParams.get() answers `null` for an absent param, and our
+     * Filters type spells "not set" as `undefined`.
+     *
+     * The `as` cast is the same small lie the others tell. The URL is
+     * user-editable, so `?show=banana` type-checks fine — the cast asserts a
+     * shape TypeScript cannot actually verify. It's tolerable here only
+     * because nothing on the client trusts the value: it's passed straight to
+     * the server, which ignores anything it doesn't recognise. The moment a
+     * value like this were used to index into an object or pick a component,
+     * it would need a real runtime check (a `zod` enum, or an `includes()`
+     * guard) instead of a cast.
+     */
+    show: (searchParams.get('show') as 'available' | 'night' | null) ?? undefined,
   }
 
   /**
@@ -147,7 +162,18 @@ export function DiscoverPage() {
    */
   const { data, isPending, isError, isFetching, refetch } = useMatches(filters)
 
-  const hasFilters = Boolean(filters.format || filters.date || filters.q)
+  /**
+   * Drives the empty state's "clear filters" button — so it has to know about
+   * EVERY filter, including `show`. Miss one and the empty list offers no way
+   * out of the filter that emptied it.
+   *
+   * The twin of `noFilters` in MatchFilters.tsx, and the same trap: adding a
+   * filter silently makes both of these wrong. `Object.values(filters).some(Boolean)`
+   * would never go stale, but it would also count any future field that isn't
+   * a filter, so the explicit list stays — it's wrong loudly rather than
+   * quietly.
+   */
+  const hasFilters = Boolean(filters.format || filters.date || filters.q || filters.show)
 
   return (
     <div className="flex flex-col gap-5 p-4 lg:p-6">

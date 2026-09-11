@@ -48,6 +48,17 @@ function toMatchPlayer(user: MockUser): MatchPlayer {
 }
 
 /**
+ * The kickoff hour at or after which a match counts as a "night game" for the
+ * Discover quick filter. Named rather than written as a bare `>= 18` in the
+ * filter, because an 18 sitting in a comparison tells the next reader nothing
+ * about which 18 it is or why it was chosen.
+ *
+ * 18:00 matches the "Night (floodlit)" wording tournaments already use for
+ * their PlayPeriod — see features/tournaments/types.ts.
+ */
+const NIGHT_START_HOUR = 18
+
+/**
  * ============================================================
  *  TOURNAMENT HELPERS
  * ============================================================
@@ -661,7 +672,7 @@ export const handlers = [
   }),
 
   /**
-   * GET /api/matches?format=5v5&date=week&q=turf
+   * GET /api/matches?format=5v5&date=week&q=turf&show=night
    *
    * IMPORTANT: the filtering happens HERE, on the "server", not in the browser.
    * That is deliberate, and it is the whole point of the query-key design:
@@ -679,6 +690,7 @@ export const handlers = [
     const format = url.searchParams.get('format')
     const date = url.searchParams.get('date')
     const q = url.searchParams.get('q')?.trim().toLowerCase()
+    const show = url.searchParams.get('show')
     // Defaulting here, not on the client, is what keeps every caller that
     // predates V1 working unchanged: no param means the same "upcoming only"
     // list the endpoint has always returned.
@@ -732,6 +744,47 @@ export const handlers = [
         (m) =>
           m.title.toLowerCase().includes(q) || m.location.toLowerCase().includes(q)
       )
+    }
+
+    /**
+     * ---- THE QUICK FILTER: two words, both DERIVED ----
+     *
+     * Neither "available" nor "night" is a field on a Match, and neither
+     * should be. Both are computable from what we already store, and this
+     * codebase stores only what it cannot compute — the same rule as
+     * `spotsLeft` in MatchCard.tsx and `captainId` in teams/types.ts. A stored
+     * `isAvailable` flag would be a second copy of `playerCount < maxPlayers`,
+     * and the two would disagree the first time an optimistic join is rolled
+     * back (see api/useJoinMatch.ts).
+     *
+     * AVAILABLE = has a free spot. Deliberately NOT "available to me", which
+     * would also exclude matches you are already on. That version needs the
+     * Authorization header, and the query key in useMatches.ts contains only
+     * the filters — not the viewer. A user-dependent answer cached under a key
+     * that never mentions the user is a real bug: log out, log in as someone
+     * else, and Query serves the previous person's list from cache.
+     *
+     * NIGHT = kicks off at 18:00 or later.
+     *
+     * ---- THE TIMEZONE CAVEAT, WHICH IS REAL ----
+     *
+     * getHours() reads the hour in the timezone of whatever machine runs this
+     * code. Here that machine is the browser, because MSW *is* the browser —
+     * so the hour compared below is the VIEWER's local hour, and viewer-clock
+     * and venue-clock happen to be the same thing.
+     *
+     * A real backend could not get away with this. `dateTime` is an INSTANT
+     * (stored UTC), while "was it a night game?" is a question about the wall
+     * clock AT THE PITCH. Answering it properly needs the venue's timezone
+     * stored next to the venue. That is the same instant-vs-wall-clock
+     * distinction spelled out on `startTime` in features/tournaments/types.ts:
+     * if the answer to "when?" changes depending on where you're standing,
+     * it's an instant; if it doesn't, it's a wall-clock time.
+     */
+    if (show === 'available') {
+      results = results.filter((m) => m.playerCount < m.maxPlayers)
+    } else if (show === 'night') {
+      results = results.filter((m) => new Date(m.dateTime).getHours() >= NIGHT_START_HOUR)
     }
 
     /**

@@ -161,6 +161,15 @@ export interface MatchFilters {
   /** free-text search across title and location */
   q?: string
   /**
+   * The quick-filter dropdown (see components/MatchQuickFilter.tsx).
+   *
+   * Only the two NARROWING values live here. The control's third option,
+   * "Any match", is `undefined` — same convention as every other field above.
+   * Storing 'all' would give us two ways to spell "no filter", and the URL
+   * would carry a pointless ?show=all.
+   */
+  show?: 'available' | 'night'
+  /**
    * Which side of the lifecycle to list. Defaults to 'upcoming' on the server,
    * so an old caller that doesn't send it keeps getting exactly what it used to.
    *
