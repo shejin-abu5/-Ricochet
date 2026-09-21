@@ -18,10 +18,6 @@ const playsPerWeekOptions = Array.from({ length: 7 }, (_, i) => {
   return { value: String(times), label: times === 1 ? 'Once a week' : `${times} times a week` }
 })
 
-/**
- * Edit team settings. Structurally the same as CreateTeamForm — same schema,
- * same fields — with one genuinely new problem.
- */
 export function TeamOptionsForm({ team }: TeamOptionsFormProps) {
   const {
     register,
@@ -32,33 +28,15 @@ export function TeamOptionsForm({ team }: TeamOptionsFormProps) {
   } = useForm<UpdateTeamFormValues>({
     resolver: zodResolver(updateTeamSchema),
 
-    /**
-     * ============================================================
-     *  PRE-FILLING A FORM WITH DATA THAT ARRIVES LATER
-     * ============================================================
+    /*
+     * defaultValues is read once, when useForm first runs. That is safe here
+     * only because ManageTeamPage renders a skeleton until the query resolves,
+     * so `team` is already real by the time this mounts. Rendered while team
+     * was undefined, the form would capture empty defaults and stay blank when
+     * the data arrived, with nothing erroring.
      *
-     * `defaultValues` is read ONCE, when useForm first runs. That's usually
-     * invisible — CreateTeamForm's defaults are constants — but here the
-     * values come from a server fetch, and there is a trap in the timing.
-     *
-     * If this component rendered while `team` was still undefined, useForm
-     * would capture empty defaults, and when the data arrived a moment later
-     * the form would STILL BE BLANK. Nothing errors; the fields are just
-     * empty, and it looks like the API returned nothing.
-     *
-     * Two ways out:
-     *
-     *   1. Don't render the form until the data exists. ManageTeamPage does
-     *      exactly that — it returns a skeleton while the query is pending, so
-     *      by the time this component mounts, `team` is real. Simplest, and
-     *      the reason this file can use plain `defaultValues`.
-     *
-     *   2. Pass `values: {...}` instead. RHF re-syncs the form whenever that
-     *      object changes — the right tool when a form must stay live against
-     *      data that can update underneath it.
-     *
-     * Option 1 whenever you can: a component that only renders with the data
-     * it needs has one less state to reason about.
+     * A form that must stay live against changing data wants `values` instead,
+     * which RHF re-syncs.
      */
     defaultValues: {
       name: team.name,
@@ -76,17 +54,9 @@ export function TeamOptionsForm({ team }: TeamOptionsFormProps) {
 
   const onSubmit = (data: UpdateTeamFormValues) => {
     updateTeamMutation.mutate(data, {
-      /**
-       * A SECOND onSuccess, passed to .mutate() rather than to useMutation.
-       *
-       * Both run. The one in useUpdateTeam is about shared consequences (cache,
-       * toast) and belongs with the mutation. This one is about THIS FORM —
-       * `reset(data)` tells RHF the submitted values are now the baseline, so
-       * `isDirty` flips back to false and the Save button disables again.
-       *
-       * Putting form-specific cleanup in the shared hook would mean the hook
-       * needing a reference to a form it shouldn't know exists.
-       */
+      // Runs in addition to the hook's own onSuccess. reset(data) makes the
+      // submitted values the new baseline, so isDirty clears and Save disables.
+      // Form-specific cleanup stays out of the shared hook.
       onSuccess: () => reset(data),
     })
   }
@@ -116,7 +86,6 @@ export function TeamOptionsForm({ team }: TeamOptionsFormProps) {
         label="How often do you play?"
         options={playsPerWeekOptions}
         error={errors.playsPerWeek?.message}
-        // valueAsNumber: the DOM hands back "3", the schema wants 3.
         {...register('playsPerWeek', { valueAsNumber: true })}
       />
 
@@ -143,11 +112,8 @@ export function TeamOptionsForm({ team }: TeamOptionsFormProps) {
         </p>
       )}
 
-      {/**
-       * `isDirty` is RHF comparing current values against the defaults. A Save
-       * button that's live when nothing has changed invites pointless requests
-       * and leaves people unsure whether their edit registered.
-       */}
+      {/* A live Save button with nothing changed invites pointless requests and
+          leaves people unsure whether the edit registered. */}
       <Button
         type="submit"
         disabled={!isDirty}

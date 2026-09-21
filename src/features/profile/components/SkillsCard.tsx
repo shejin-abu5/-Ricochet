@@ -11,31 +11,24 @@ interface SkillsCardProps {
 }
 
 /**
- * Section 2: how you play.
+ * How you play.
  *
- * NOTE ON STYLING: the attributes are plain "4 / 5" text rather than bars,
- * dots, or any chart. Functionality first; the visual pass happens once the
- * features are done (docs/03-uiux-design-brief.md, and the note in docs/11).
- * Everything here is real data in the right shape, so that pass is a styling
- * job and not a rewrite.
+ * Attributes render as plain "4 / 5" text rather than bars or a chart — the
+ * data is in the right shape, so the visual pass (docs/03) is styling and not
+ * a rewrite.
  */
 export function SkillsCard({ profile }: SkillsCardProps) {
   return (
     <div>
       <div className="flex flex-wrap gap-2">
         <Badge>{positionLabels[profile.position]}</Badge>
-        {/* skillLevel is the SAME union a match uses for its required level —
-            one scale, one definition, so the two are comparable. See the note
-            at the top of features/profile/types.ts. */}
         <Badge>{profile.skillLevel}</Badge>
         <Badge>{footLabels[profile.preferredFoot]}</Badge>
       </div>
 
       <dl className="mt-4 flex flex-col gap-1 text-meta">
-        {/* Iterating a fixed ORDER array rather than Object.keys(attributes).
-            Object key order comes from however the server serialised the JSON;
-            a stats list that reshuffles between renders is disorienting, and
-            it's the kind of bug that only shows up after a backend change. */}
+        {/* A fixed order array, not Object.keys — see attributeOrder in
+            ../types.ts. */}
         {attributeOrder.map(({ key, label }) => (
           <div key={key} className="flex justify-between gap-2">
             <dt className="text-content-muted">{label}</dt>

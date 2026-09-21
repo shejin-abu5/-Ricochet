@@ -11,34 +11,26 @@ interface InvitePlayerPanelProps {
 }
 
 /**
- * The captain's "invite a player" search, inside the Manage card on the team
- * profile. Rendered only for the captain — and, as ever, that is UX and not
- * security: the server returns 403 to anyone else regardless.
+ * The captain's "invite a player" search, inside the Manage card.
+ *
+ * Rendered only for the captain, which is UX rather than security — the server
+ * 403s anyone else regardless.
  */
 export function InvitePlayerPanel({ team }: InvitePlayerPanelProps) {
-  /**
-   * Search text is LOCAL state, not the URL.
-   *
-   * DiscoverPage and TeamsPage both put their search in the address bar, on
-   * purpose — a filtered list is worth sharing and worth having in history.
-   * This one isn't: nobody links someone to "the invite box with 'arj' typed
-   * in it". Same technique, opposite decision, because the question is always
-   * "does this belong in a shareable URL?" rather than "which hook do I like".
-   */
+  // Local, not in the URL like Discover and Teams: nobody shares a link to the
+  // invite box with "arj" typed in it.
   const [query, setQuery] = useState('')
 
-  // The input updates instantly; the deferred copy lags slightly and is what
-  // drives the request, so typing stays responsive and we don't fire a
-  // request per keystroke. Same as the search on Discover.
+  // The request keys off the deferred copy so typing stays responsive.
   const deferredQuery = useDeferredValue(query)
 
   const { data: results, isFetching } = useUserSearch(team.id, deferredQuery)
   const invite = useSendInvite(team.id)
 
   const full = isTeamFull(team)
-  // `isFetching` rather than `isPending`: this query is disabled below two
-  // characters, and a disabled query is permanently "pending" — so isPending
-  // would show a skeleton over an empty search box forever.
+  // isFetching, not isPending: the query is disabled below two characters, and
+  // a disabled query stays pending forever — isPending would leave a skeleton
+  // sitting over an empty search box.
   const searching = isFetching
   const hasQuery = deferredQuery.trim().length >= 2
 
@@ -81,9 +73,6 @@ export function InvitePlayerPanel({ team }: InvitePlayerPanelProps) {
       {hasQuery && !searching && results && results.length > 0 && (
         <ul className="flex flex-col gap-2">
           {results.map((user) => {
-            // Both flags come from the SERVER, which has the roster and the
-            // invite table. The client couldn't work either out reliably —
-            // see the note on InvitableUser in ../types.ts.
             const unavailable = user.alreadyMember || user.alreadyInvited
 
             return (
@@ -95,9 +84,7 @@ export function InvitePlayerPanel({ team }: InvitePlayerPanelProps) {
                   <p className="truncate text-label text-content-muted">{user.email}</p>
                 </div>
 
-                {/* Explain WHY it's unavailable rather than just greying out a
-                    button. "Invited" and "In team" answer the question the
-                    disabled state raises. */}
+                {/* Name the reason rather than just greying the button out. */}
                 {user.alreadyMember ? (
                   <span className="shrink-0 text-label text-content-faint">In team</span>
                 ) : user.alreadyInvited ? (
@@ -107,7 +94,6 @@ export function InvitePlayerPanel({ team }: InvitePlayerPanelProps) {
                     variant="secondary"
                     className="shrink-0 px-3 py-1 text-label"
                     disabled={unavailable || invite.isPending}
-                    // The mutation is per-team, so it only needs the user id.
                     onClick={() => invite.mutate(user.id)}
                   >
                     Invite

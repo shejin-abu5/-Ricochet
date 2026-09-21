@@ -8,14 +8,11 @@ import { useMyInvites } from '../api/useInvites'
 import { useRespondToMembership } from '../api/useRespondToMembership'
 
 /**
- * Turn an ISO timestamp into "3 hours ago".
+ * Turns an ISO timestamp into "3 hours ago".
  *
- * Hand-rolled because it's ~10 lines and the alternative is a date library for
- * one string. Intl.RelativeTimeFormat handles the wording (and the plurals,
- * and other languages) — we only have to decide which unit to use.
- *
- * The moment this needs "last Tuesday" or timezone maths, reach for date-fns.
- * Knowing WHERE that line is matters more than which side of it you're on.
+ * Hand-rolled because Intl handles the wording and plurals, leaving only the
+ * unit choice. The moment this needs "last Tuesday" or timezone maths, switch
+ * to a date library.
  */
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
 
@@ -41,17 +38,10 @@ function InviteSkeleton() {
   )
 }
 
-/**
- * /invites — the invitations inbox (docs/02-app-flow.md flow 5, step 3).
- *
- * The same four states as every read screen. By now the shape should be
- * automatic; the interesting code is in useRespondToInvite.ts.
- */
+/** /invites — the invitations inbox (docs/02-app-flow.md flow 5, step 3). */
 export function InvitesPage() {
   const { data: invites, isPending, isError, refetch } = useMyInvites()
-  // The SAME hook the captain's JoinRequestsPanel uses. One endpoint answers
-  // both directions, so one mutation hook serves both screens — see the note
-  // at the top of useRespondToMembership.ts.
+  // The same hook JoinRequestsPanel uses: one endpoint answers both directions.
   const respond = useRespondToMembership()
 
   return (
@@ -99,15 +89,8 @@ export function InvitesPage() {
       {!isPending && !isError && invites && invites.length > 0 && (
         <ul className="flex flex-col gap-3">
           {invites.map((invite) => {
-            /**
-             * `respond.isPending` is true while ANY invite is being answered,
-             * because there is one mutation object shared by the whole list.
-             * `variables` holds the arguments of the in-flight call, so this
-             * narrows the spinner to the row actually being answered.
-             *
-             * Without it, answering one invite disables every button on the
-             * page — which looks broken, especially on a slow connection.
-             */
+            // One mutation serves the whole list, so isPending alone would spin
+            // every row. `variables` narrows it to the row being answered.
             const busy = respond.isPending && respond.variables?.membershipId === invite.id
 
             return (
@@ -117,8 +100,6 @@ export function InvitesPage() {
                     <Avatar name={invite.teamName} colour={invite.teamColour} size="md" />
 
                     <div className="min-w-0 flex-1">
-                      {/* The team name links out, so you can look at who you'd
-                          be joining before deciding. */}
                       <Link
                         to={`/teams/${invite.teamId}`}
                         className="truncate font-medium text-content hover:text-primary"
@@ -128,9 +109,6 @@ export function InvitesPage() {
                       <p className="truncate text-meta text-content-muted">
                         {invite.invitedByName} invited you
                       </p>
-                      {/* <time> with a machine-readable dateTime: assistive tech
-                          and crawlers get the exact timestamp, humans get
-                          "3 hours ago". */}
                       <time dateTime={invite.createdAt} className="text-label text-content-faint">
                         {timeAgo(invite.createdAt)}
                       </time>
@@ -145,9 +123,7 @@ export function InvitesPage() {
                         respond.mutate({
                           membershipId: invite.id,
                           action: 'accept',
-                          // Picks the toast wording: you're the player here,
-                          // so "You joined the team" rather than the captain's
-                          // "Player added to the squad".
+                          // Picks the toast wording only.
                           kind: 'invite',
                         })
                       }

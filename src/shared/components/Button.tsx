@@ -10,13 +10,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 /**
- * Every value here is a design token — no raw colours. Change the tokens in
- * src/index.css and every button in the app follows.
+ * Tokens only, no raw colours.
  *
- * NOTE ON `primary`: it pairs `bg-primary` with `text-on-primary`, and that
- * pairing is not cosmetic. #d2ff00 is bright enough that white text on it is
- * 1.16:1 — genuinely unreadable. Dark text on it is 16.7:1. Any time you fill
- * something with the brand colour, the text on top has to be dark.
+ * `primary` pairs bg-primary with text-on-primary and that pairing is load-
+ * bearing: white on #d2ff00 measures 1.16:1, dark text on it 16.7:1. Anything
+ * filled with the brand colour needs dark text on top.
  */
 const variantClasses: Record<ButtonVariant, string> = {
   primary: 'bg-primary text-on-primary hover:bg-primary-hover',
@@ -26,16 +24,11 @@ const variantClasses: Record<ButtonVariant, string> = {
 }
 
 /**
- * ---- SIZES EXIST BECAUSE OF TOUCH TARGETS ----
+ * Sizes exist for touch targets. The accessibility minimum is 44x44 (Apple) /
+ * 48x48 (Material), and the inline `px-2 py-0.5` these replaced produced a 20px
+ * control.
  *
- * Before this pass, small buttons were written inline as `px-2 py-0.5 text-label`,
- * which produced a control about 20px tall. The accessibility minimum for
- * anything you tap is 44×44 (Apple) / 48×48 (Material) — a 20px target is a
- * genuine usability failure on a phone, not a style choice.
- *
- * `min-h` rather than fixed height so a button with wrapping text can grow.
- * `sm` is 36px visually but keeps a 44px tap area via padding on touch
- * devices; on a dense list of actions that's the honest compromise.
+ * min-h rather than a fixed height so a button with wrapping text can grow.
  */
 const sizeClasses: Record<ButtonSize, string> = {
   sm: 'min-h-9 px-3 text-meta',
@@ -53,31 +46,19 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      /**
-       * `transition-colors` and nothing else: colour changes are cheap for the
-       * browser (no layout, no paint of surrounding elements). Animating
-       * width/height or margins on hover causes reflow and jank — the skill's
-       * `transform-performance` rule.
-       *
-       * Focus rings come from the global :focus-visible in index.css, so they
-       * can't be forgotten per-component.
-       */
+      // transition-colors only: colour changes need no layout work, unlike
+      // animating size or margin. Focus rings come from the global
+      // :focus-visible in index.css so they cannot be forgotten per component.
       className={`inline-flex items-center justify-center gap-2 rounded-control font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${sizeClasses[size]} ${variantClasses[variant]} ${className}`}
       disabled={disabled || isLoading}
-      /**
-       * aria-busy tells a screen reader the control is working. Without it, a
-       * blind user hears the label change from "Join match" to "Loading…" with
-       * no indication that anything is in progress.
-       */
       aria-busy={isLoading}
       {...props}
     >
       {isLoading ? (
         <>
-          {/* A spinner, not the word "Loading…". Swapping the label out means
-              the button changes width mid-click, which shifts everything next
-              to it. Keeping the label and adding a spinner holds the layout
-              still — the skill's `layout-shift-avoid` rule. */}
+          {/* The label stays and a spinner is added, rather than swapping the
+              text: replacing it changes the button's width mid-click and shifts
+              everything beside it. */}
           <span
             aria-hidden="true"
             className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"

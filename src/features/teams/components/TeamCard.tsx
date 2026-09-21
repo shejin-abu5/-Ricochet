@@ -11,12 +11,10 @@ interface TeamCardProps {
 }
 
 /**
- * The `TeamCard` from the component inventory in docs/03-uiux-design-brief.md.
+ * The TeamCard from the inventory in docs/03.
  *
- * Same construction as MatchCard: the whole card is a Link (a bigger tap
- * target than a small "view" button, which matters on a phone), and it knows
- * about our domain — which is why it lives in features/teams/ and not in
- * shared/, while the Avatar and Badge it uses are the other way round.
+ * Domain-aware, so it lives in features/teams — unlike the Avatar and Badge it
+ * composes, which are shared.
  */
 export function TeamCard({ team, isYourTeam = false }: TeamCardProps) {
   const { wins, losses, draws } = team.record
@@ -27,8 +25,7 @@ export function TeamCard({ team, isYourTeam = false }: TeamCardProps) {
         <div className="flex items-start gap-3">
           <Avatar name={team.name} colour={team.colour} size="md" />
 
-          {/* min-w-0 lets the truncate below actually work inside a flex row —
-              the same flexbox gotcha called out in MatchCard.tsx. */}
+          {/* min-w-0 is what lets truncate work inside a flex row. */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="truncate font-medium text-content">{team.name}</h3>
@@ -40,9 +37,8 @@ export function TeamCard({ team, isYourTeam = false }: TeamCardProps) {
             <p className="mt-2 text-label text-content-faint">
               {team.memberCount} {team.memberCount === 1 ? 'member' : 'members'}
               {' · '}
-              {/* W-L-D is how football records are written, and it's compact
-                  enough to scan in the "under a second" the design brief asks
-                  for. Spelling out "12 wins, 3 losses" would wrap on mobile. */}
+              {/* W-L-D is how football records are written, and "12 wins, 3
+                  losses" would wrap on mobile. */}
               {wins}W {losses}L {draws}D
             </p>
           </div>

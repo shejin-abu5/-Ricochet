@@ -20,16 +20,9 @@ const skillOptions = [
 ]
 
 export function CreateMatchForm() {
-  /**
-   * Identical setup to SignupForm.tsx — useForm + zodResolver. That
-   * repetition is the point: once a pattern is right, every form in the app
-   * looks the same and nobody has to think about wiring again.
-   *
-   * One new option: defaultValues. Without it, the two <select>s would show
-   * their first <option> while RHF believed the field was empty, and the
-   * form would fail validation over a value the user can plainly see. Any
-   * field whose control has an inherent initial value needs this.
-   */
+  // defaultValues matters for the selects: without it they would display
+  // their first option while RHF still believed the field was empty, failing
+  // validation over a value the user can see.
   const {
     register,
     handleSubmit,
@@ -68,9 +61,7 @@ export function CreateMatchForm() {
         {...register('location')}
       />
 
-      {/* type="datetime-local" gives a native date+time picker, which on a
-          phone is the OS one your users already know how to use. Building a
-          custom calendar widget is a lot of work to end up worse. */}
+      {/* Native picker — on a phone this is the OS one people already know. */}
       <FormField
         label="Date & time"
         type="datetime-local"
@@ -100,9 +91,8 @@ export function CreateMatchForm() {
         {...register('notes')}
       />
 
-      {/* The mutation also fires an error toast (see useCreateMatch), but a
-          toast vanishes after a few seconds. Showing it here too means the
-          reason stays on screen while the user fixes the problem. */}
+      {/* Duplicated with the toast in useCreateMatch on purpose: a toast is gone
+          in seconds, and the reason needs to stay up while the user fixes it. */}
       {createMatch.error && (
         <p role="alert" className="text-meta text-danger">
           {createMatch.error.message}

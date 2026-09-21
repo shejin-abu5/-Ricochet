@@ -21,30 +21,17 @@ import { CreateMatchPage } from '../features/matches/components/CreateMatchPage'
 /**
  * Route tree, matching docs/02-app-flow.md.
  *
- * Auth screens (login/signup) sit OUTSIDE <Layout> — no bottom nav,
- * per the design brief. Everything else sits inside <Layout>, and the
- * routes that require a session are further wrapped in <ProtectedRoute>.
- *
- * As we build each feature we'll swap PagePlaceholder for the real
- * page component (e.g. HomePage, MatchDetailPage) — the route
- * structure itself won't need to change.
+ * Auth screens sit outside <Layout> so they get no nav, per docs/03. Everything
+ * else is inside it, and routes needing a session are wrapped in
+ * <ProtectedRoute>.
  */
 export const router = createBrowserRouter([
   /**
-   * Log in and sign up are ONE screen with two URLs.
-   *
-   * Note this route has an `element` but no `path` — a "pathless layout
-   * route". It matches whenever one of its children matches, so <AuthPage />
-   * is mounted for both /login and /signup, and React Router swaps only the
-   * <Outlet /> inside it when you move between them.
-   *
-   * That's what keeps the gradient panel stable: it lives in AuthPage, above
-   * the Outlet, so switching modes never re-creates it. Two sibling page
-   * routes would each build their own shell and tear it down again on every
-   * switch.
-   *
-   * Both paths survive, which matters — Layout.tsx navigates to /login on
-   * logout, and /signup has to be linkable from outside the app.
+   * A pathless layout route: `element` with no `path`, so <AuthPage /> stays
+   * mounted across /login and /signup and React Router swaps only its
+   * <Outlet />. That is what keeps the gradient panel from being rebuilt on
+   * every mode switch. Both paths exist because logout navigates to /login and
+   * /signup has to be linkable from outside the app.
    */
   {
     element: <AuthPage />,
@@ -57,21 +44,14 @@ export const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { path: '/', element: <DiscoverPage /> },
-      /**
-       * Careful reading this next line together with '/matches/new' below:
-       * you might expect /matches/new to be swallowed by /matches/:id with
-       * id="new". It isn't. React Router ranks routes by SPECIFICITY, not
-       * by declaration order — a literal segment ("new") always outscores a
-       * dynamic one (":id"), regardless of which is written first.
-       */
+      // /matches/new is not swallowed by this: React Router ranks by
+      // specificity, not declaration order, so a literal segment always
+      // outscores a dynamic one. Same for /teams/new below.
       { path: '/matches/:id', element: <MatchDetailPage /> },
       { path: '/teams', element: <TeamsPage /> },
-      // Same specificity rule as /matches/:id vs /matches/new below — the
-      // literal "new" outranks the dynamic ":id" regardless of declaration
-      // order, so /teams/new is never matched as a team with id "new".
       { path: '/teams/:id', element: <TeamProfilePage /> },
-      // On hold — the tab stays so the nav matches the design, and the page is
-      // honest about why it's empty rather than pretending to be broken.
+      // On hold. The tab stays so the nav matches the design, and the page says
+      // why it is empty rather than looking broken.
       {
         path: '/market',
         element: (
@@ -91,8 +71,8 @@ export const router = createBrowserRouter([
         ),
       },
       { path: '/tournaments', element: <TournamentsPage /> },
-      // Public: anyone can watch a bracket, logged in or not. The controls
-      // inside it are what depend on who you are.
+      // Public — anyone can watch a bracket. The controls inside it are what
+      // depend on who you are.
       { path: '/tournaments/:id', element: <TournamentDetailPage /> },
       {
         element: <ProtectedRoute />,
@@ -100,17 +80,12 @@ export const router = createBrowserRouter([
           { path: '/profile', element: <ProfilePage /> },
           { path: '/matches/new', element: <CreateMatchPage /> },
           { path: '/teams/new', element: <CreateTeamPage /> },
-          /**
-           * ProtectedRoute only checks "logged in", because that's answerable
-           * synchronously from the Zustand store. "Are you the captain of THIS
-           * team?" needs the team fetched first, so ManageTeamPage does that
-           * check itself after its query resolves — and every endpoint behind
-           * it returns 403 independently, which is the part that's actually
-           * load-bearing.
-           */
+          // ProtectedRoute only answers "logged in", which the store knows
+          // synchronously. The captaincy check happens inside ManageTeamPage,
+          // after its query resolves.
           { path: '/teams/:id/manage', element: <ManageTeamPage /> },
-          // Protected, and not just for convenience: an invites inbox is
-          // inherently personal — there is no sensible thing to show a guest.
+          // An invites inbox is inherently personal — there is nothing sensible
+          // to show a guest.
           { path: '/invites', element: <InvitesPage /> },
           { path: '/tournaments/new', element: <CreateTournamentPage /> },
         ],

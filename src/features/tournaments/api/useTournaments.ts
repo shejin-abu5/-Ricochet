@@ -12,9 +12,6 @@ import { useUiStore } from '../../../shared/uiStore'
 import type { CreateTournamentFormValues } from '../schemas'
 import type { Tournament } from '../types'
 
-/**
- * A fifth key tree, same shape as the other four.
- */
 export const tournamentKeys = {
   all: ['tournaments'] as const,
   list: () => ['tournaments', 'list'] as const,
@@ -50,9 +47,7 @@ export function useCreateTournament() {
     onSuccess: (tournament) => {
       queryClient.invalidateQueries({ queryKey: tournamentKeys.all })
       showToast('Tournament created')
-      // Straight to the new tournament — it's empty and needs teams, so the
-      // detail page is where you actually want to be. Same call as
-      // useCreateTeam.
+      // Straight to the new tournament: it is empty and needs teams.
       navigate(`/tournaments/${tournament.id}`)
     },
 
@@ -61,39 +56,19 @@ export function useCreateTournament() {
 }
 
 /**
- * ============================================================
- *  THREE MUTATIONS, ONE SHARED SHAPE
- * ============================================================
+ * Shared factory for entering a team, drawing the bracket and recording a
+ * result: all three act on one tournament, get the full updated tournament
+ * back, and want it written to the detail cache with the list refreshed.
  *
- * Entering a team, drawing the bracket and recording a result all:
+ * If one ever diverges, split it back out rather than adding flags here.
  *
- *   - act on one tournament
- *   - get the FULL updated tournament back
- *   - want that written into the detail cache, and the list refreshed
+ * setQueryData before invalidate so the new bracket appears immediately rather
+ * than after a round trip. Not an optimistic update — this is the server's real
+ * answer, so there is nothing to roll back.
  *
- * So they share this one factory instead of three near-identical hooks. Worth
- * extracting only because the success handling is genuinely identical — if
- * they diverged (say, one needed to invalidate teams too), splitting them back
- * apart would be the right move rather than adding flags to this.
- *
- * ---- setQueryData BEFORE invalidate ----
- *
- * `setQueryData` writes the server's response straight into the cache, so the
- * new bracket appears immediately. `invalidateQueries` then refreshes the list
- * in the background. Without the first line, the screen would sit on stale data
- * for a whole extra round trip while the refetch ran.
- *
- * This is NOT an optimistic update — it's the server's real answer, after it
- * arrived. Nothing is guessed, so there's nothing to roll back. Worth keeping
- * the two ideas separate: `setQueryData` is a tool, optimism is a strategy that
- * happens to use it.
- *
- * ---- WHY NONE OF THESE ARE OPTIMISTIC ----
- *
- * Drawing a bracket produces a RANDOM pairing — the client cannot predict it,
- * by definition. Recording a result cascades into the next round and possibly
- * crowns a champion. Both are rare, deliberate, organiser-only actions where a
- * short wait is fine. Optimism is for frequent, predictable interactions.
+ * None of the three are optimistic: a draw is random and unpredictable by
+ * definition, a result cascades into the next round, and both are rare
+ * organiser-only actions where a short wait is fine.
  */
 function useTournamentMutation<TArgs>({
   tournamentId,
@@ -125,9 +100,8 @@ export function useEnterTeam(tournamentId: string) {
     tournamentId,
     request: (teamId) => enterTeam(tournamentId, teamId),
     successMessage: (tournament) =>
-      // The count comes from the SERVER's response, not from a number the
-      // client incremented — so it's right even if someone else entered a team
-      // a second ago.
+      // Count from the server's response, so it stays right if someone else
+      // entered a team a second ago.
       `Entered — ${tournament.teamCount}/${tournament.slots} teams in`,
   })
 }
@@ -146,8 +120,6 @@ export function useRecordResult(tournamentId: string) {
     request: ({ matchId, scoreA, scoreB }) =>
       recordResult(tournamentId, matchId, scoreA, scoreB),
     successMessage: (tournament) =>
-      // The server tells us whether that was the final, so the toast can say
-      // the interesting thing rather than a generic "saved".
       tournament.status === 'completed'
         ? `${tournament.championTeamName} win the tournament`
         : 'Result recorded',

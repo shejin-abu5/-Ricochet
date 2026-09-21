@@ -3,18 +3,12 @@ import type { Tournament } from '../types'
 import type { CreateTournamentFormValues } from '../schemas'
 
 /**
- * Raw fetch calls for tournaments. Knows HTTP, knows nothing about React —
- * the same split as every other api/ file here.
+ * All four mutations resolve to the FULL updated tournament rather than an ack.
  *
- * Notice all four mutations return the FULL updated tournament. Entering a
- * team, drawing the bracket and recording a result each change the tournament
- * in ways that ripple (a drawn bracket changes status AND creates matches; a
- * result changes one match AND feeds the next round AND can crown a champion).
- *
- * Returning the whole thing means the client never has to work out the knock-on
- * effects — it drops the server's version into the cache and everything on
- * screen is correct at once. Returning `{ ok: true }` would force the client to
- * either refetch anyway or re-implement the bracket rules.
+ * Each one ripples: drawing a bracket changes status and creates matches, and a
+ * result updates one match, feeds the next round, and may crown a champion.
+ * Returning the whole object means the client drops it into the cache instead of
+ * re-implementing the bracket rules or refetching anyway.
  */
 
 export async function fetchTournaments(): Promise<Tournament[]> {
@@ -51,8 +45,8 @@ async function postJson(url: string, body?: unknown): Promise<Tournament> {
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null)
-    // The server's message is always the useful one here: "Needs all 8 teams —
-    // 5 entered so far", "A knockout match needs a winner — no draws".
+    // The server's message is the useful one: "needs all 8 teams — 5 entered so
+    // far", "a knockout match needs a winner — no draws".
     throw new Error(errorBody?.message ?? 'Something went wrong. Please try again.')
   }
 

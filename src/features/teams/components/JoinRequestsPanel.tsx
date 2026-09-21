@@ -12,7 +12,7 @@ interface JoinRequestsPanelProps {
   isCaptain: boolean
 }
 
-/** "3 hours ago" — see InvitesPage.tsx for why this is hand-rolled. */
+/** "3 hours ago". See InvitesPage.tsx for why this is hand-rolled. */
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
 
 function timeAgo(iso: string): string {
@@ -26,17 +26,12 @@ function timeAgo(iso: string): string {
 /**
  * The captain's approval queue: players who asked to join this team.
  *
- * The exact mirror of InvitesPage. There, YOU received an invite and answered
- * it; here, YOUR TEAM received a request and you answer it. Same stored rows
- * (mocks/membershipData.ts), same endpoint, same mutation hook — only the
- * direction and therefore the wording differ.
- *
- * As always: rendering this only for the captain is UX. The server returns 403
- * to anyone else, which is the part that actually enforces it.
+ * The mirror of InvitesPage — same stored rows, same endpoint, same mutation,
+ * opposite direction. Rendering it only for the captain is UX; the server's 403
+ * is what enforces it.
  */
 export function JoinRequestsPanel({ team, isCaptain }: JoinRequestsPanelProps) {
-  // The boolean is passed down into `enabled` rather than wrapping this
-  // component in a conditional and hoping — see the note in useInvites.ts.
+  // Passed into `enabled` rather than relying on a parent conditional.
   const { data: requests, isPending, isError } = useJoinRequests(team.id, isCaptain)
   const respond = useRespondToMembership()
 
@@ -52,25 +47,19 @@ export function JoinRequestsPanel({ team, isCaptain }: JoinRequestsPanelProps) {
     )
   }
 
-  // Nothing pending is the normal state, so it gets one quiet line rather than
-  // a full EmptyState card — this is a section inside a page, not the page.
+  // One quiet line, not an EmptyState card: this is a section, not a page.
   if (!requests || requests.length === 0) {
     return <p className="mt-3 text-meta text-content-muted">No pending join requests.</p>
   }
 
   return (
     <div className="mt-3">
-      {/* Just the count. The section around this already says "Join requests"
-          (see ManageTeamPage), and a component that repeats its container's
-          heading is how pages end up saying everything twice. A panel should
-          render its CONTENT and let whoever placed it do the labelling. */}
+      {/* Count only — ManageTeamPage already supplies the heading. */}
       <Badge variant="warning">
         {requests.length} pending
       </Badge>
 
-      {/* The captain can still REJECT while full — they just can't approve.
-          Explaining why the Approve buttons are dead is the difference between
-          a broken screen and an understood one. */}
+      {/* Reject still works when full; only Approve is blocked, so say why. */}
       {full && (
         <p className="mt-2 text-meta text-content-muted">
           The squad is full, so you can&rsquo;t approve anyone until someone leaves.
@@ -79,15 +68,8 @@ export function JoinRequestsPanel({ team, isCaptain }: JoinRequestsPanelProps) {
 
       <ul className="mt-3 flex flex-col gap-3">
         {requests.map((request) => {
-          /**
-           * One mutation object serves the whole list, so `respond.isPending`
-           * is true for EVERY row while any one of them is in flight.
-           * `variables` holds the arguments of the call currently running,
-           * which narrows the spinner to the row actually being answered.
-           *
-           * Without this, approving one player disables every button on the
-           * page — which looks broken, especially on a slow connection.
-           */
+          // One mutation serves the whole list, so isPending alone would spin
+          // every row. `variables` narrows it to the row being answered.
           const busy =
             respond.isPending && respond.variables?.membershipId === request.id
 
@@ -113,14 +95,12 @@ export function JoinRequestsPanel({ team, isCaptain }: JoinRequestsPanelProps) {
                 <Button
                   className="flex-1 py-1 text-label"
                   isLoading={busy}
-                  // Can't add anyone to a squad that has no room.
                   disabled={full}
                   onClick={() =>
                     respond.mutate({
                       membershipId: request.id,
                       action: 'accept',
-                      // Only used to pick the toast wording — a captain
-                      // "adds a player", a player "joins a team".
+                      // Picks the toast wording only.
                       kind: 'request',
                     })
                   }

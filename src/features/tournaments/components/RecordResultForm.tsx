@@ -12,28 +12,16 @@ interface RecordResultFormProps {
 /**
  * Enter a score for one match.
  *
- * ---- WHY PLAIN useState AND NOT REACT HOOK FORM ----
+ * Plain useState rather than the RHF + Zod every other form here uses: two
+ * number inputs and one rule, rendered inline in a bracket, where RHF would be
+ * more setup than logic. If this grows a date, venue and notes, move it across.
  *
- * Every other form in this project uses RHF + Zod, and consistency usually
- * wins. This one is two number inputs with one rule ("not a draw"), rendered
- * inline inside a bracket rather than on its own page.
- *
- * RHF earns its keep on forms with many fields, where avoiding a re-render per
- * keystroke matters and where validation rules pile up. Here it would be more
- * setup than logic.
- *
- * The honest version of the guideline: match the codebase's patterns unless you
- * can say WHY this case is different. Two controlled number inputs is a
- * difference worth naming — and if this form grows a date, a venue and a notes
- * field, it should move to RHF like the others.
- *
- * NOTE: the real validation is server-side anyway (no draws, whole numbers,
- * both teams decided, not already recorded). What's here is fast feedback.
+ * The real validation is server-side (no draws, whole numbers, both teams
+ * decided, not already recorded) — this is the fast half of the same answer.
  */
 export function RecordResultForm({ tournamentId, match, onDone }: RecordResultFormProps) {
-  // Strings, not numbers. An empty number input gives '' — and forcing that to
-  // a number early means either NaN or a 0 the user didn't type, which then
-  // fights them as they edit. Keep it a string, convert at the boundary.
+  // Strings, not numbers: an empty number input gives '', and coercing early
+  // yields either NaN or a 0 the user did not type and then has to delete.
   const [scoreA, setScoreA] = useState('')
   const [scoreB, setScoreB] = useState('')
 
@@ -45,15 +33,12 @@ export function RecordResultForm({ tournamentId, match, onDone }: RecordResultFo
   const isDraw = bothFilled && a === b
 
   const handleSubmit = (event: React.FormEvent) => {
-    // Without this the browser does a full page navigation on submit and the
-    // whole app reloads — the single most common React form bug.
     event.preventDefault()
     if (!bothFilled || isDraw) return
 
     recordResult.mutate(
       { matchId: match.id, scoreA: a, scoreB: b },
-      // Close the form only once the server has accepted it. Closing on click
-      // would hide the error message if it failed.
+      // Close only once the server accepts, or a failure hides its own error.
       { onSuccess: onDone }
     )
   }
@@ -88,8 +73,6 @@ export function RecordResultForm({ tournamentId, match, onDone }: RecordResultFo
         />
       </div>
 
-      {/* Told BEFORE they submit, not after a round trip. The server enforces
-          the same rule — this is the fast half of the same answer. */}
       {isDraw && (
         <p role="alert" className="text-meta text-danger">
           A knockout match needs a winner — no draws.

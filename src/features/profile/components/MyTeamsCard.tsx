@@ -7,40 +7,16 @@ import { isCaptain } from '../../teams/types'
 import { useAuthStore } from '../../auth/authStore'
 
 /**
- * Section 3: the teams you're on.
+ * The teams you are on.
  *
- * ============================================================
- *  IMPORTING ACROSS FEATURES
- * ============================================================
+ * Imports TeamCard from the teams feature rather than moving it to shared/:
+ * shared/ is for components that know nothing about the domain, and a team card
+ * knows what a team is. The dependency runs one way — teams does not know
+ * profile exists.
  *
- * This file is in features/profile/ and imports TeamCard from features/teams/.
- * Worth pausing on, because feature-based folders are often taught as "features
- * must not touch each other".
- *
- * The real rule is narrower and more useful:
- *
- *   ✅ A feature may depend on another feature, if the dependency runs ONE WAY.
- *   ❌ Two features importing from each other is a cycle — and cycles are where
- *      "why did changing this file break that unrelated one?" comes from.
- *
- * profile → teams is fine. teams does not know profile exists.
- *
- * The alternative was moving TeamCard to shared/. That would be wrong: shared/
- * is for components that know NOTHING about our domain (Button, Card, Avatar),
- * and TeamCard understands what a team is. Moving it there to dodge an import
- * would make shared/ the place where domain code goes to hide.
- *
- * (If a THIRD feature needed a team card, that would be the moment to
- * reconsider — the same "second consumer" rule that moved Avatar to shared/.)
- *
- * ---- WHY THIS CARD FETCHES ITS OWN DATA ----
- *
- * Unlike ProfileOverview and SkillsCard, which take props, this one calls
- * useMyTeams itself. That is deliberate: the teams query resolves separately
- * from the profile query, so this section can show its own loading state while
- * the rest of the page is already readable. Lifting the query to the page
- * would mean the page deciding when this section is ready — and the whole page
- * waiting on the slower of two requests.
+ * Fetches its own data, unlike the sibling cards that take props, so this
+ * section can show its own loading state while the rest of the page is already
+ * readable.
  */
 export function MyTeamsCard() {
   const { data: teams, isPending, isError, refetch } = useMyTeams()
@@ -83,8 +59,6 @@ export function MyTeamsCard() {
         <TeamCard
           key={team.id}
           team={team}
-          // Derived on the spot from data already in hand — no "which teams do
-          // I captain" query, no stored flag. Same instinct as everywhere else.
           isYourTeam={isCaptain(team, currentUserId)}
         />
       ))}

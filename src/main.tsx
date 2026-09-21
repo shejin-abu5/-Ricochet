@@ -7,24 +7,13 @@ import './index.css'
 import { queryClient } from './app/queryClient'
 import { router } from './app/router'
 
-
 /**
- * Compare this to `main.tsx` on the `redux-toolkit-version` branch:
- * the Redux `<Provider store={store}>` wrapper is gone entirely.
- * Zustand stores (see features/auth/authStore.ts) are just hooks —
- * any component can call `useAuthStore()` directly with no ancestor
- * provider required. One fewer layer to reason about, and one fewer
- * thing to remember to wire up when a new store is added.
+ * Starts the MSW worker before the first render, so no request can escape
+ * unmocked. Dropped from production builds entirely — import.meta.env.DEV is
+ * statically false there, so this branch and MSW itself are tree-shaken out.
  *
- * TanStack Query still needs QueryClientProvider — that's unrelated
- * to the Redux/Zustand question, it's providing the query CACHE, a
- * different concern from client state.
- */
-/**
- * Dev-only: put the fake pizza guy (MSW) in position before we open the
- * front door (render). Skipped entirely in production — import.meta.env.DEV
- * is false there, so this whole branch (and MSW itself) is dropped from
- * the build.
+ * Note there is no store Provider: Zustand stores are hooks, so only TanStack
+ * Query needs one, for its cache.
  */
 async function enableMocking() {
   if (!import.meta.env.DEV) return

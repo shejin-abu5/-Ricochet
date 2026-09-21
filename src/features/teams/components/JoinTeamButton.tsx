@@ -9,38 +9,24 @@ interface JoinTeamButtonProps {
 }
 
 /**
- * SEVEN states, in priority order. The ORDER is the design — several of these
- * are true at once and only the most specific one should win.
+ * The team membership control. Seven states, and the ORDER is the design —
+ * several are true at once and the most specific must win:
  *
- *   guest         → "Log in to join"
- *   captain       → nothing (a captain can't leave their own team)
- *   member        → "Leave team"
- *   request sent  → "Request sent", disabled     ← new
- *   full          → "Team full", disabled
- *   in flight     → "Loading…", disabled
- *   otherwise     → "Request to join"
+ *   guest / captain / member / request sent / full / in flight / can join
  *
- * Read the captain and full branches together. A captain of a FULL team
- * matches both — and showing them "Team full" would be nonsense, because
- * fullness is not why they have no button. Checking captaincy first is not
- * arbitrary ordering; it is "answer the most specific question first".
+ * Captain is checked before full because a captain of a full squad matches
+ * both, and "Team full" is not why they have no button. "Request sent" sits
+ * above full for the same reason: if you already asked, that is the useful
+ * thing to say whatever else is true of the squad.
  *
- * The new "request sent" branch sits ABOVE "full" for the same reason: if you
- * already asked, that is the more useful thing to tell you, whatever else is
- * also true of the squad right now.
- *
- * Get this ordering backwards and you ship a button whose label is technically
- * true and completely unhelpful. Classic source of confusing UI.
- *
- * As in JoinMatchButton, there is no useState here — every branch is derived
- * from the team and the current user, so the screen updates itself the moment
- * the cache changes.
+ * Every branch is derived from the team and the user, so the button updates
+ * itself the moment the cache changes.
  */
 export function JoinTeamButton({ team }: JoinTeamButtonProps) {
   const user = useAuthStore((state) => state.user)
 
-  // Hooks always run, in the same order, every render — never inside an `if`.
-  // Creating a mutation is cheap; nothing happens until .mutate() is called.
+  // Created unconditionally to satisfy the rules of hooks; nothing runs until
+  // .mutate().
   const requestToJoin = useRequestToJoinTeam(team.id)
   const leave = useLeaveTeam(team.id)
 
@@ -74,20 +60,17 @@ export function JoinTeamButton({ team }: JoinTeamButtonProps) {
     )
   }
 
-  /**
-   * `yourRequestStatus` is computed by the server and only present on the
-   * DETAIL response — it depends on who is asking, so the shared list endpoint
-   * can't answer it. Undefined therefore means "not answered here", which is
-   * why this compares to 'pending' explicitly rather than testing truthiness.
-   */
+  // Compared explicitly rather than tested for truthiness: only the detail
+  // endpoint answers `yourRequestStatus`, so undefined means "not answered
+  // here", not "no".
   if (team.yourRequestStatus === 'pending') {
     return (
       <div>
         <Button variant="secondary" className="w-full" disabled>
           Request sent
         </Button>
-        {/* Say what happens next. A disabled button with no explanation reads
-            as a bug; one sentence turns it into a status. */}
+        {/* A disabled button with no explanation reads as a bug; one sentence
+            turns it into a status. */}
         <p className="mt-2 text-center text-label text-content-muted">
           Waiting for the captain to approve you.
         </p>
@@ -96,8 +79,7 @@ export function JoinTeamButton({ team }: JoinTeamButtonProps) {
   }
 
   if (isTeamFull(team)) {
-    // Disabled and labelled, not hidden. A missing button makes people hunt
-    // for it; this one answers the question immediately.
+    // Disabled and labelled, not hidden — a missing button makes people hunt.
     return (
       <Button variant="secondary" className="w-full" disabled>
         Team full &middot; {team.memberCount}/{team.maxMembers}

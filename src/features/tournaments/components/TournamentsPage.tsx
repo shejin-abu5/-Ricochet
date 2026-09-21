@@ -10,14 +10,8 @@ import { playPeriodLabels, type Tournament, type TournamentStatus } from '../typ
 /**
  * "5 Sep 2026" for a one-day cup, "5 – 7 Sep 2026" for a longer one.
  *
- * Duplicated in TournamentDetailPage with slightly different wording (that one
- * spells out the weekday). Left as two small functions rather than one shared
- * helper with a `format` flag — two callers with genuinely different output is
- * not duplication worth removing, and a helper with a mode switch is usually
- * harder to read than both versions of it.
- *
- * (If a third caller appears, that's the moment to reconsider — same
- * "second consumer" rule used everywhere else in this project.)
+ * TournamentDetailPage has a near-twin that spells out the weekday. Kept as two
+ * functions rather than one with a mode flag; revisit if a third caller appears.
  */
 function formatDateRange(startIso: string, endIso: string): string {
   const start = new Date(startIso)
@@ -36,11 +30,8 @@ function formatDateRange(startIso: string, endIso: string): string {
 }
 
 /**
- * Status → words and colour, in one lookup.
- *
- * A Record keyed by the union type means adding a status to TournamentStatus
- * without adding it here is a COMPILE ERROR, not a blank badge discovered in
- * production. Same trick as variantClasses in Badge.tsx.
+ * Keyed by the union, so adding a TournamentStatus without adding it here is a
+ * compile error rather than a blank badge found in production.
  */
 const statusMeta: Record<TournamentStatus, { label: string; variant: 'success' | 'warning' | 'neutral' }> = {
   open: { label: 'Taking entries', variant: 'success' },
@@ -64,10 +55,8 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-meta text-content-muted">
           <Badge>Knockout</Badge>
-          {/* Day/night on the CARD, not just the detail page — whether a
-              tournament is played at 8am or under floodlights is one of the
-              first things that rules it in or out, so it belongs where people
-              are scanning a list. */}
+          {/* On the card, not just the detail page: 8am versus floodlit is one
+              of the first things that rules a tournament in or out. */}
           <Badge>{playPeriodLabels[tournament.playPeriod]}</Badge>
           <span>{formatDateRange(tournament.startDate, tournament.endDate)}</span>
           <span>{tournament.startTime}</span>
@@ -76,8 +65,6 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
           </span>
         </div>
 
-        {/* Only finished tournaments have a champion, so this line only exists
-            when there's something to say. */}
         {tournament.championTeamName && (
           <p className="mt-2 text-meta text-content">
             Winner: {tournament.championTeamName}
@@ -91,13 +78,8 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
 /**
  * /tournaments — the list.
  *
- * The same four states as every read screen in this app: loading, error,
- * empty, success. Fifth time now.
- *
- * No filters or search yet, deliberately — there is one seeded handful of
- * tournaments and adding a filter UI before there's anything to filter is
- * building for an imagined problem. The pattern is in DiscoverPage and
- * TeamsPage when it's needed.
+ * No filters or search yet: there is one seeded handful of tournaments, and the
+ * pattern is in DiscoverPage and TeamsPage when it is needed.
  */
 export function TournamentsPage() {
   const { data: tournaments, isPending, isError, refetch } = useTournaments()

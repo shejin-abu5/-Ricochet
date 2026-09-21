@@ -1,11 +1,6 @@
 import type { AvatarColour } from '../../shared/components/avatarColours'
 
-/**
- * The shape of a team, mirroring the data model in docs/01-PRD.md.
- *
- * Type-only file, same as features/matches/types.ts — no JavaScript is
- * produced here, it exists purely so the editor can catch mistakes.
- */
+/** Team data model. Mirrors docs/01-PRD.md. */
 
 export interface TeamMember {
   id: string
@@ -36,52 +31,23 @@ export interface Team {
   colour: AvatarColour
 
   /**
-   * ============================================================
-   *  HOW ROLES ARE MODELLED — read this one carefully
-   * ============================================================
-   *
-   * Notice what TeamMember does NOT have: a `role` field.
-   *
-   * The obvious modelling instinct is:
-   *
-   *   interface TeamMember { id, name, role: 'captain' | 'member' }
-   *
-   * Don't. You would then have TWO places recording who runs this team —
-   * `captainId` here, and a `role` on one of the members — and nothing
-   * stopping them from disagreeing. Transfer the captaincy, update one and
-   * forget the other, and your app now has two captains, or none. Every bug
-   * of this shape starts with data stored twice.
-   *
-   * Instead there is exactly one fact, `captainId`, and role is a QUESTION
-   * you answer from it:
-   *
-   *   const isCaptain = member.id === team.captainId
-   *
-   * Same instinct as `isMember` in JoinMatchButton.tsx and `spotsLeft` in
-   * MatchCard.tsx. If you can calculate it, calculate it.
+   * The single source of truth for who runs the team. TeamMember deliberately
+   * has no `role` field: two records of the same fact drift, and a half-finished
+   * captaincy transfer would leave the team with two captains or none. Role is a
+   * question you answer — see isCaptain() below.
    */
   captainId: string
 
   /**
-   * The roster. This is what "nested data" means: a team is not a flat row,
-   * it CONTAINS a list of other entities.
-   *
-   * That matters for the cache. When Phase 3b adds a member, the mutation has
-   * to reach inside this array and produce a new team object with a new
-   * members array — you cannot just replace a top-level field. Nested data is
-   * where immutable updates start to take real thought.
+   * The roster. Only the detail endpoint fills this — mutations that add or
+   * remove a member have to rebuild both this array and the team around it.
    */
   members: TeamMember[]
 
   /** Count for list views, full array for detail views — same split as Match. */
   memberCount: number
 
-  /**
-   * Squad cap. Once memberCount reaches this, nobody else can join.
-   *
-   * Comes from the SERVER, exactly like maxPlayers on a match — a client that
-   * could set its own cap could set it to 500. Same rule as Phase 2b.
-   */
+  /** Squad cap, set server-side — a client-chosen cap could be 500. */
   maxMembers: number
 
   /** Nested object rather than three loose fields, so it can be passed around
@@ -93,15 +59,10 @@ export interface Team {
   }
 
   /**
-   * Do I have a join request sitting with this captain?
+   * Whether the caller has a join request pending with this captain.
    *
-   * Optional because only the DETAIL endpoint fills it in — it depends on who
-   * is asking, and the list endpoint answers the same way for everyone.
-   * Undefined therefore means "not answered here", never "no".
-   *
-   * Computed server-side rather than by the client digging through a requests
-   * list, for the same reason as `alreadyMember` on InvitableUser: the server
-   * has both tables in front of it, and the answer is one string.
+   * Optional because only the detail endpoint answers it — the answer depends
+   * on who is asking. Undefined means "not answered here", never "no".
    */
   yourRequestStatus?: 'none' | 'pending'
 }
@@ -112,34 +73,19 @@ export interface TeamFilters {
   q?: string
 }
 
-/**
- * Is this user the captain of this team?
- *
- * A plain function rather than a hook, because it needs no React features at
- * all — it is just a comparison. Plain functions are easier to test, can be
- * called from anywhere (including inside a `.map()`), and never trip the
- * rules-of-hooks lint.
- *
- * "Reach for a hook only when you need React" is a good default. A surprising
- * amount of what people write as custom hooks are really just functions.
- */
+/** Is this user the captain of this team? */
 export function isCaptain(team: Team, userId: string | undefined): boolean {
-  // The `!!userId` guard matters: if userId is undefined and captainId were
-  // ever also undefined, `undefined === undefined` would make a logged-out
-  // guest the captain of a broken team. Cheap check, nasty bug.
+  // The !!userId guard stops undefined === undefined making a logged-out guest
+  // the captain of a team with no captainId.
   return !!userId && team.captainId === userId
 }
 
 /**
  * Is this user on the roster?
  *
- * Reads `members`, which the LIST endpoint strips — so this only gives a true
- * answer on a team fetched through useTeam (the detail endpoint). Anywhere
- * else it will confidently say "no" for someone who is in fact a member.
- *
- * A sharp edge worth naming out loud rather than discovering later: when two
- * endpoints return the same TYPE with different amounts of data filled in,
- * TypeScript cannot warn you. It sees a valid `Team` either way.
+ * Only valid on a team from useTeam. The list endpoint strips `members`, so on
+ * list data this confidently returns false for an actual member — and since both
+ * endpoints return the same `Team` type, TypeScript cannot warn you.
  */
 export function isMember(team: Team, userId: string | undefined): boolean {
   return !!userId && team.members.some((member) => member.id === userId)
@@ -149,12 +95,6 @@ export function isMember(team: Team, userId: string | undefined): boolean {
 export function isTeamFull(team: Team): boolean {
   return team.memberCount >= team.maxMembers
 }
-
-/**
- * ============================================================
- *  INVITES — Phase 3b
- * ============================================================
- */
 
 export type MembershipStatus = 'pending' | 'accepted' | 'declined'
 
@@ -169,19 +109,11 @@ export type MembershipStatus = 'pending' | 'accepted' | 'declined'
 export type MembershipKind = 'invite' | 'request'
 
 /**
- * A user the captain could invite. Comes from GET /api/users?q=…
+ * A user the captain could invite. From GET /api/users?q=…
  *
- * `alreadyMember` is computed BY THE SERVER, not by the client filtering the
- * roster itself. Two reasons:
- *
- *   1. The client would need the full roster to check, and the teams LIST
- *      endpoint strips it — so a search on a screen that only has list data
- *      would quietly get it wrong.
- *   2. The server already has both sides in front of it. Sending the answer
- *      costs one boolean; sending the raw material costs a roster.
- *
- * General habit: when a screen needs a QUESTION answered, consider answering
- * it server-side rather than shipping the data to work it out client-side.
+ * `alreadyMember` is answered server-side: the client would need the full
+ * roster to work it out, and the teams list endpoint strips it, so a search on
+ * a list-data screen would quietly get it wrong.
  */
 export interface InvitableUser {
   id: string
@@ -192,18 +124,11 @@ export interface InvitableUser {
 }
 
 /**
- * An invitation, as the RECIPIENT sees it.
+ * An invitation, as the recipient sees it.
  *
- * Note what's embedded: `teamName` and `teamColour`, not just `teamId`. The
- * inbox has to draw "Kochi United invited you", and with only an id it would
- * need a second request per invite to find out the name — the N+1 query
- * problem, on the client.
- *
- * The cost is duplication: if a team is renamed, invites already sent carry
- * the old name until refetched. That trade — one round trip versus slightly
- * stale embedded copies — is exactly what people mean by "denormalising for
- * reads", and it's a normal, deliberate API design choice rather than a
- * mistake.
+ * teamName and teamColour are embedded rather than looked up from teamId, which
+ * would cost the inbox one request per row. The trade is staleness: invites
+ * already sent carry the old name until refetched if a team is renamed.
  */
 export interface TeamInvite {
   id: string
@@ -218,23 +143,11 @@ export interface TeamInvite {
 }
 
 /**
- * A join request, as the CAPTAIN sees it.
+ * A join request, as the captain sees it.
  *
- * ---- ONE STORED ROW, TWO READ SHAPES ----
- *
- * `TeamInvite` above and `JoinRequest` here come from the SAME table
- * (mocks/membershipData.ts). They look different because the two screens ask
- * different questions of it:
- *
- *   the player's inbox  → "which TEAM wants me?"    → teamName, teamColour
- *   the captain's queue → "which PLAYER wants in?"  → playerName, playerEmail
- *
- * Nobody needs their own team's name printed on a row inside their own team's
- * page, and nobody in the inbox needs their own email read back to them.
- *
- * Storing one shape and returning several is normal and good. The mistake to
- * avoid is the reverse — STORING both shapes, which is two copies of one fact
- * waiting to disagree.
+ * Same stored table as TeamInvite (mocks/membershipData.ts), read through a
+ * different projection: the inbox asks "which team wants me?", the captain's
+ * queue asks "which player wants in?".
  */
 export interface JoinRequest {
   id: string

@@ -7,84 +7,40 @@ import { useMatches } from '../api/useMatches'
 import type { MatchFilters as Filters, MatchFormat } from '../types'
 
 /**
- * ============================================================
- *  THE URL IS THE STATE CONTAINER
- * ============================================================
- *
- * Filters live in the address bar: /?format=5v5&q=turf
- *
- * We could have used useState. Putting them in the URL instead buys three
- * things for free, with no extra code:
- *
- *   1. The back button steps through filter changes, like users expect.
- *   2. A filtered view is a shareable link — send someone "5v5 matches
- *      this week" and they see exactly what you see.
- *   3. Refreshing the page keeps your filters.
- *
- * useSearchParams is React Router's hook for this. It works like useState:
- * you get the current value and a setter, and changing it re-renders.
- * The difference is that the value lives in the URL, not in memory.
+ * Discover. Filters live in the URL (/?format=5v5&q=turf) rather than local
+ * state, which makes filtered views shareable, survives a refresh, and lets the
+ * back button step through filter changes.
  */
 export function DiscoverPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // Read the URL into a plain object our query layer understands.
-  // `?? undefined` because searchParams.get() returns null when a param is
-  // absent, and our MatchFilters type expects undefined for "not set".
+  // `?? undefined` because get() returns null for an absent param and Filters
+  // spells "not set" as undefined.
+  //
+  // The casts assert shapes TypeScript can't verify — the URL is user-editable,
+  // so ?show=banana type-checks. Tolerable only because nothing on the client
+  // trusts these: they go straight to the server, which ignores what it doesn't
+  // recognise. Indexing an object or picking a component with one would need a
+  // real runtime guard instead.
   const filters: Filters = {
     format: (searchParams.get('format') as MatchFormat | null) ?? undefined,
     date: (searchParams.get('date') as 'today' | 'week' | null) ?? undefined,
     q: searchParams.get('q') ?? undefined,
-    /**
-     * The quick-filter dropdown. Same `?? undefined` conversion as the three
-     * above: searchParams.get() answers `null` for an absent param, and our
-     * Filters type spells "not set" as `undefined`.
-     *
-     * The `as` cast is the same small lie the others tell. The URL is
-     * user-editable, so `?show=banana` type-checks fine — the cast asserts a
-     * shape TypeScript cannot actually verify. It's tolerable here only
-     * because nothing on the client trusts the value: it's passed straight to
-     * the server, which ignores anything it doesn't recognise. The moment a
-     * value like this were used to index into an object or pick a component,
-     * it would need a real runtime check (a `zod` enum, or an `includes()`
-     * guard) instead of a cast.
-     */
     show: (searchParams.get('show') as 'available' | 'night' | null) ?? undefined,
   }
 
-  /**
-   * SEARCH INPUT: local state, not the URL.
-   *
-   * Why the exception? Writing to the URL on every keystroke would push a
-   * history entry per letter — the back button would then walk backwards
-   * through "tur", "tu", "t". So the input is local, and we sync it to the
-   * URL after a short pause (see the useEffect below).
-   */
+  // The search box is the one filter held locally: writing the URL per keystroke
+  // would push a history entry per letter. It syncs to the URL on a delay below.
   const [searchValue, setSearchValue] = useState(filters.q ?? '')
 
   /**
-   * ---- ...BUT THE URL CAN ALSO CHANGE WITHOUT US ----
+   * The URL can also change from outside this component — the header's
+   * GlobalSearch navigates to /?q=turf without remounting Discover. Left alone,
+   * the effect below would then see a stale empty input and delete `q` again,
+   * so the header's search silently did nothing.
    *
-   * `useState(filters.q)` reads the URL exactly ONCE, when this component
-   * first mounts. That was fine while this input was the only thing that
-   * could set `?q=`. It isn't any more: the header's <GlobalSearch> navigates
-   * to `/?q=turf` from anywhere in the app.
-   *
-   * When that happened while Discover was already mounted, the two searches
-   * fought and the header lost:
-   *
-   *   1. header navigates    → URL is `/?q=turf`
-   *   2. Discover does NOT remount (same route), so searchValue is still ''
-   *   3. the effect below wakes up, sees '' !== 'turf'...
-   *   4. ...and deletes q from the URL. The search silently did nothing.
-   *
-   * The fix is to let the URL win, since the URL is the source of truth here.
-   * This is the same "adjust state during render" pattern UserMenu uses to
-   * close on navigation: compare what we last saw to what's there now, and if
-   * something else moved it, follow.
-   *
-   * It runs during render rather than in an effect, so the corrected value is
-   * on screen in the same paint — no frame showing a stale input.
+   * Adjusting during render (rather than in an effect) means the corrected
+   * value is on screen in the same paint, with no frame showing the stale one.
    */
   const urlQuery = filters.q ?? ''
   const [lastUrlQuery, setLastUrlQuery] = useState(urlQuery)
@@ -94,29 +50,16 @@ export function DiscoverPage() {
     setSearchValue(urlQuery)
   }
 
-  /**
-   * useDeferredValue (React 19) hands back a "lagging" copy of a value.
-   * The input stays perfectly responsive because `searchValue` updates
-   * immediately, while `deferredSearch` trails slightly behind — and it's
-   * the deferred one we use for the expensive work (a network request).
-   *
-   * Result: typing feels instant, but we don't fire a request per keystroke.
-   */
+  // The input reads `searchValue` so typing stays instant; the request keys off
+  // the deferred copy, so it doesn't fire once per keystroke.
   const deferredSearch = useDeferredValue(searchValue)
 
-  /**
-   * Sync the deferred search value into the URL.
-   *
-   * useEffect = "run this AFTER rendering, when these values changed".
-   * We need it here because we're synchronising with something OUTSIDE
-   * React (the browser's address bar) — that's exactly what effects are for.
-   */
   useEffect(() => {
     const trimmed = deferredSearch.trim()
     const current = searchParams.get('q') ?? ''
 
-    // Guard: without this, setting the params would re-render, which would
-    // run this effect again, forever. Only write when something CHANGED.
+    // Without this guard the write re-renders, which re-runs the effect, which
+    // writes again.
     if (trimmed === current) return
 
     const next = new URLSearchParams(searchParams)
@@ -126,23 +69,18 @@ export function DiscoverPage() {
       next.delete('q')
     }
 
-    // replace: true overwrites the current history entry instead of adding
-    // one, so searching doesn't flood the back button.
+    // replace so typing a query doesn't flood the back button.
     setSearchParams(next, { replace: true })
-  }, [deferredSearch, searchParams, setSearchParams]) // [] is the dependency array. The watch list.
+  }, [deferredSearch, searchParams, setSearchParams])
 
-  /** Write chip selections into the URL. */
   const handleFilterChange = (nextFilters: Filters) => {
     const next = new URLSearchParams(searchParams)
 
-    // Object.entries turns { format: '5v5', date: undefined } into
-    // [['format','5v5'], ['date', undefined]] so we can loop over it.
     for (const [key, value] of Object.entries(nextFilters)) {
       if (value) {
         next.set(key, value)
       } else {
-        // Deleting rather than setting "" keeps the URL clean: /?format=5v5
-        // instead of /?format=5v5&date=&q=
+        // Delete rather than set '' — otherwise the URL collects ?date=&q=
         next.delete(key)
       }
     }
@@ -155,23 +93,15 @@ export function DiscoverPage() {
     setSearchParams(new URLSearchParams())
   }
 
-  /**
-   * THE HOOK. Note what's passed: `filters`, read from the URL. So the URL
-   * drives the query key, which drives the cache. Change the URL → new key
-   * → Query either serves a cached result instantly or fetches a new one.
-   */
   const { data, isPending, isError, isFetching, refetch } = useMatches(filters)
 
   /**
-   * Drives the empty state's "clear filters" button — so it has to know about
-   * EVERY filter, including `show`. Miss one and the empty list offers no way
-   * out of the filter that emptied it.
+   * Drives the empty state's "clear filters" button, so it has to name every
+   * filter — miss one and the empty list offers no way out of the filter that
+   * emptied it. Twin of `noFilters` in MatchFilters.tsx.
    *
-   * The twin of `noFilters` in MatchFilters.tsx, and the same trap: adding a
-   * filter silently makes both of these wrong. `Object.values(filters).some(Boolean)`
-   * would never go stale, but it would also count any future field that isn't
-   * a filter, so the explicit list stays — it's wrong loudly rather than
-   * quietly.
+   * Object.values(...).some(Boolean) would never go stale but would also count
+   * any future non-filter field, so the explicit list stays: it breaks loudly.
    */
   const hasFilters = Boolean(filters.format || filters.date || filters.q || filters.show)
 
@@ -185,9 +115,8 @@ export function DiscoverPage() {
           </p>
         </div>
 
-        {/* Lime fill, dark text — `text-on-primary`, never white. Hidden on
-            the smallest screens where the header would crowd; the create
-            action is still reachable from the empty state and the nav. */}
+        {/* Hidden on the smallest screens, where it would crowd the header —
+            the thumb-reachable copy at the bottom takes over there. */}
         <Link
           to="/matches/new"
           className="hidden min-h-11 shrink-0 items-center gap-1.5 rounded-control bg-primary px-4 text-meta font-medium text-on-primary transition-colors hover:bg-primary-hover sm:inline-flex"
@@ -205,9 +134,6 @@ export function DiscoverPage() {
       />
 
       <section className="flex flex-col gap-3">
-        {/* A real heading, not a styled <p>. Screen-reader users navigate by
-            heading; skipping levels or faking them with paragraphs removes
-            the page's structure for anyone not looking at it. */}
         <h2 className="text-heading text-content">Nearby Matches</h2>
 
         <MatchList
@@ -221,8 +147,6 @@ export function DiscoverPage() {
         />
       </section>
 
-      {/* Mobile create button: full width at the bottom of the content, where
-          a thumb can reach it, instead of the header. */}
       <Link
         to="/matches/new"
         className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-control bg-primary px-4 text-meta font-medium text-on-primary sm:hidden"

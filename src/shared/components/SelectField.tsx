@@ -13,16 +13,11 @@ interface SelectFieldProps extends SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 /**
- * The dropdown twin of FormField. Same shape, same ref-as-a-prop trick
- * (React 19 — no forwardRef needed), so it works with React Hook Form's
- * spread in exactly the same way:
+ * The dropdown twin of FormField.
  *
- *   <SelectField label="Format" {...register('format')} options={...} />
- *
- * Built as its own component rather than adding a `type="select"` branch to
- * FormField, because <select> is a genuinely different element with different
- * children (<option>s) — cramming both into one component would mean a pile
- * of conditionals and a props type where half the fields are irrelevant.
+ * Separate rather than a `type="select"` branch inside FormField, because
+ * <select> takes different children and different attributes — one component
+ * for both means a props type where half the fields are irrelevant.
  */
 export function SelectField({
   label,
@@ -40,19 +35,10 @@ export function SelectField({
       <label htmlFor={fieldId} className="text-meta font-medium text-content-muted">
         {label}
       </label>
-      {/**
-       * The dropdown LIST that opens when you click a <select> is drawn by the
-       * operating system, not by us — no amount of CSS here can style it. It
-       * renders dark only because `color-scheme: dark` is set on <html> in
-       * index.css. Without that one line, this control would look right until
-       * you opened it, then flash a white native menu.
-       *
-       * That's why the project uses a real <select> rather than a custom
-       * dropdown: native gives keyboard support, type-ahead, mobile wheel
-       * pickers and screen-reader semantics for free. The skill's
-       * `system-controls` rule — only build a custom control when branding
-       * genuinely requires it.
-       */}
+      {/* The open list is drawn by the OS and no CSS here reaches it — it
+          renders dark only because index.css sets `color-scheme: dark`. Without
+          that line this control looks right until you open it, then flashes a
+          white native menu. */}
       <select
         id={fieldId}
         ref={ref}

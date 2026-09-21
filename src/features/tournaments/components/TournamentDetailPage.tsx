@@ -22,11 +22,10 @@ function formatDate(iso: string): string {
 }
 
 /**
- * "Saturday 5 September" or "5–7 September 2026".
+ * "Saturday 5 September" for a one-day cup, "5 – 7 Sep 2026" otherwise.
  *
- * A one-day tournament reading "5 September – 5 September" looks like a bug, so
- * the two cases are handled separately. Comparing the DATE part only, because
- * two ISO strings for the same day can still differ in their time component.
+ * Compares the date part only: two ISO strings for the same day can differ in
+ * their time component, and "5 September – 5 September" reads as a bug.
  */
 function formatDateRange(startIso: string, endIso: string): string {
   const start = new Date(startIso)
@@ -59,31 +58,25 @@ function DetailSkeleton() {
 }
 
 /**
- * /tournaments/:id
+ * /tournaments/:id — the whole lifecycle on one page, since which controls
+ * appear is a function of `status` and who you are:
  *
- * The whole tournament lifecycle on one page, because which controls appear is
- * entirely a function of `status` and who you are:
+ *   open        entered teams and open slots; a captain of an un-entered team
+ *               gets "Enter <team>", and the organiser gets "Draw the bracket"
+ *               once the field is full
+ *   in_progress the bracket, with "Record result" for the organiser
+ *   completed   the bracket plus the champion
  *
- *   open        → entered teams + open slots
- *                 captain of an un-entered team → "Enter <team>"
- *                 organiser, field full         → "Draw the bracket"
- *   in_progress → the bracket
- *                 organiser → "Record result" on any playable match
- *   completed   → the bracket, plus the champion
- *
- * Everything is DERIVED from the tournament object and the current user. There
- * is no local copy of "has the bracket been drawn" — the server says, the cache
- * holds it, the UI reads it. The only useState on this page is which match's
- * result form is open, which is genuinely local UI state that nothing else
- * needs to know about.
+ * All derived from the tournament object and the current user — there is no
+ * local copy of "has the bracket been drawn".
  */
 export function TournamentDetailPage() {
   const { id = '' } = useParams()
   const { data: tournament, isPending, isError, error, refetch } = useTournament(id)
   const currentUserId = useAuthStore((state) => state.user?.id)
 
-  // Which match is having its result entered. Local, ephemeral, one component
-  // cares — so useState, not Zustand and not the URL.
+  // Which match is having its result entered — ephemeral, and nothing outside
+  // this component needs it.
   const [resultMatch, setResultMatch] = useState<TournamentMatch | null>(null)
 
   const enterTeam = useEnterTeam(id)
@@ -120,8 +113,8 @@ export function TournamentDetailPage() {
   const isOrganiser = !!currentUserId && tournament.organiserId === currentUserId
   const openSlots = tournament.slots - tournament.teamCount
   const isFull = openSlots <= 0
-  // enterableTeams is server-computed and detail-only. `?? []` because it's
-  // optional on the type — undefined means "not answered here", never "none".
+  // Server-computed and detail-only, so undefined means "not answered here",
+  // never "none".
   const enterableTeams = tournament.enterableTeams ?? []
 
   return (
@@ -154,9 +147,9 @@ export function TournamentDetailPage() {
           </div>
           <div className="flex gap-2">
             <dt className="text-content-muted">Kickoff</dt>
-            {/* Printed exactly as stored. No new Date() anywhere near it — it's
-                a wall-clock time, so converting it would show a different
-                number to a viewer in another timezone. See types.ts. */}
+            {/* Printed exactly as stored — no new Date(). It is a wall-clock
+                time, so converting would show a different number to a viewer in
+                another timezone. */}
             <dd className="text-content">
               {tournament.startTime} · {playPeriodLabels[tournament.playPeriod]}
             </dd>
@@ -171,11 +164,9 @@ export function TournamentDetailPage() {
         </dl>
       </Card>
 
-      {/* ---- CONTACT DETAILS ----
-          The server omits these entirely for logged-out viewers, so this whole
-          card simply doesn't render for them — there is nothing in the response
-          to un-hide in devtools. The `contactPhone &&` check is reading what
-          the server chose to send, not enforcing the rule itself. */}
+      {/* The server omits these for logged-out viewers, so there is nothing in
+          the response to un-hide in devtools. This check reads what the server
+          chose to send; it does not enforce the rule. */}
       {tournament.contactPhone && (
         <Card>
           <h2 className="text-meta font-medium text-content">Contact the organiser</h2>
@@ -183,8 +174,6 @@ export function TournamentDetailPage() {
             <div className="flex gap-2">
               <dt className="text-content-muted">Phone</dt>
               <dd>
-                {/* tel: and mailto: links — one tap dials on a phone instead of
-                    making someone copy a number out by hand. */}
                 <a href={`tel:${tournament.contactPhone}`} className="text-primary">
                   {tournament.contactPhone}
                 </a>
@@ -211,7 +200,6 @@ export function TournamentDetailPage() {
         </Card>
       )}
 
-      {/* ---- ENTERED TEAMS ---- */}
       <Card>
         <h2 className="text-meta font-medium text-content">
           Teams{' '}
@@ -233,8 +221,8 @@ export function TournamentDetailPage() {
             </li>
           ))}
 
-          {/* Open slots as dashed rows — the same device as match and team
-              rosters, so "how full is this" reads the same way everywhere. */}
+          {/* Dashed rows for open slots, matching match and team rosters so
+              "how full is this" reads the same way everywhere. */}
           {tournament.status === 'open' &&
             Array.from({ length: Math.max(0, openSlots) }).map((_, i) => (
               <li key={`open-${i}`} className="flex items-center gap-3">
@@ -247,10 +235,8 @@ export function TournamentDetailPage() {
             ))}
         </ul>
 
-        {/* ---- ENTER A TEAM ----
-            Only shown when there is actually something to click: the
-            tournament is open, and you captain a team that isn't in it. The
-            server checks captaincy again regardless (403). */}
+        {/* Shown only when there is something to click. The server re-checks
+            captaincy regardless. */}
         {tournament.status === 'open' && enterableTeams.length > 0 && (
           <div className="mt-4 border-t border-border pt-4">
             <h3 className="text-meta font-medium text-content">Enter your team</h3>
@@ -260,9 +246,8 @@ export function TournamentDetailPage() {
                   key={team.teamId}
                   variant="secondary"
                   isLoading={
-                    // Narrow the spinner to the team being entered — one
-                    // mutation object serves every button in this list, so
-                    // isPending alone would spin all of them.
+                    // One mutation serves every button here, so isPending alone
+                    // would spin all of them.
                     enterTeam.isPending && enterTeam.variables === team.teamId
                   }
                   disabled={isFull}
@@ -276,7 +261,6 @@ export function TournamentDetailPage() {
         )}
       </Card>
 
-      {/* ---- ORGANISER: DRAW THE BRACKET ---- */}
       {isOrganiser && tournament.status === 'open' && (
         <Card>
           <h2 className="text-meta font-medium text-content">Draw the bracket</h2>
@@ -296,7 +280,6 @@ export function TournamentDetailPage() {
         </Card>
       )}
 
-      {/* ---- THE BRACKET ---- */}
       {tournament.status !== 'open' && (
         <Card>
           <h2 className="text-meta font-medium text-content">Bracket</h2>
@@ -310,20 +293,17 @@ export function TournamentDetailPage() {
         </Card>
       )}
 
-      {/* ---- RESULT ENTRY ----
-          Rendered inline below the bracket rather than in a modal: Modal is on
-          the component inventory but isn't built yet, and an inline panel needs
-          no focus trapping or escape handling to be usable. When Modal exists,
-          this moves into it with no change to RecordResultForm. */}
+      {/* Inline below the bracket rather than in shared/components/Modal: an
+          inline panel needs no focus trapping to be usable, and moving it into
+          the Modal later requires no change to RecordResultForm. */}
       {resultMatch && (
         <Card>
           <h2 className="text-meta font-medium text-content">Record result</h2>
           <div className="mt-3">
             <RecordResultForm
               tournamentId={id}
-              // key={resultMatch.id} remounts the form when you switch matches,
-              // which resets its score inputs. Without it, React reuses the
-              // component and the previous match's scores stay in the boxes.
+              // Remounts the form when you switch matches, clearing the score
+              // inputs — without it the previous match's scores stay in them.
               key={resultMatch.id}
               match={resultMatch}
               onDone={() => setResultMatch(null)}
