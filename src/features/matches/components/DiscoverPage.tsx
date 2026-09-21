@@ -26,10 +26,7 @@ export function DiscoverPage() {
     format: (searchParams.get('format') as MatchFormat | null) ?? undefined,
     date: (searchParams.get('date') as 'today' | 'week' | null) ?? undefined,
     q: searchParams.get('q') ?? undefined,
-<<<<<<< HEAD
-=======
     show: (searchParams.get('show') as 'available' | 'night' | null) ?? undefined,
->>>>>>> parent of bc50764 (Revert "polish comp")
   }
 
   // The search box is the one filter held locally: writing the URL per keystroke
@@ -98,9 +95,6 @@ export function DiscoverPage() {
 
   const { data, isPending, isError, isFetching, refetch } = useMatches(filters)
 
-<<<<<<< HEAD
-  const hasFilters = Boolean(filters.format || filters.date || filters.q)
-=======
   /**
    * Drives the empty state's "clear filters" button, so it has to name every
    * filter — miss one and the empty list offers no way out of the filter that
@@ -110,7 +104,6 @@ export function DiscoverPage() {
    * any future non-filter field, so the explicit list stays: it breaks loudly.
    */
   const hasFilters = Boolean(filters.format || filters.date || filters.q || filters.show)
->>>>>>> parent of bc50764 (Revert "polish comp")
 
   return (
     <div className="flex flex-col gap-5 p-4 lg:p-6">

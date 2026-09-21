@@ -1,4 +1,5 @@
 import type { MatchFilters as Filters, MatchFormat } from '../types'
+import { MatchQuickFilter, type QuickFilter } from './MatchQuickFilter'
 
 interface MatchFiltersProps {
   filters: Filters
@@ -63,20 +64,6 @@ export function MatchFilters({
     onFilterChange({ ...filters, date: filters.date === date ? undefined : date })
   }
 
-<<<<<<< HEAD
-  const noFilters = !filters.format && !filters.date
-
-  return (
-    <div className="flex flex-col gap-3">
-      <input
-        type="search"
-        value={searchValue}
-        onChange={(e) => onSearchChange(e.target.value)}
-        placeholder="Search by title or location"
-        aria-label="Search matches"
-        className="min-h-11 w-full rounded-control border border-border bg-raised px-3 text-body text-content placeholder:text-content-faint"
-      />
-=======
   /**
    * Translates between the dropdown's three values and the filter object's two
    * plus absence. A <select> must render something, so it needs an explicit
@@ -124,7 +111,6 @@ export function MatchFilters({
           className="shrink-0 sm:w-48"
         />
       </div>
->>>>>>> parent of bc50764 (Revert "polish comp")
 
       {/* Scrolls sideways on a narrow phone rather than wrapping into a tall
           stack that pushes the list down. The scrollbar is hidden because the
@@ -134,21 +120,16 @@ export function MatchFilters({
         aria-label="Filter matches"
         className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]"
       >
-<<<<<<< HEAD
-        {/* "All matches" is a chip like the others, active when nothing else
-            is — matching the reference. It gives people an obvious way BACK to
-            the unfiltered list, rather than having to remember that tapping an
-            active chip clears it. */}
-=======
         {/* An explicit way back to the unfiltered list, rather than relying on
             people remembering that tapping an active chip clears it. It clears
             `show` too, so it can't leave the dropdown narrowing a list it
             claims is unfiltered. */}
->>>>>>> parent of bc50764 (Revert "polish comp")
         <Chip
           label="All matches"
           isActive={noFilters}
-          onClick={() => onFilterChange({ ...filters, format: undefined, date: undefined })}
+          onClick={() =>
+            onFilterChange({ ...filters, format: undefined, date: undefined, show: undefined })
+          }
         />
 
         {dateOptions.map((option) => (

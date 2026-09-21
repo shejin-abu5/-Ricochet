@@ -43,9 +43,16 @@ function getUserFromRequest(request: Request): MockUser | null {
 }
 
 /** Trim a MockUser down to the small shape a roster actually needs. */
-function toMatchPlayer(user: MockUser): MatchPlayer {
-  return { id: user.id, name: user.name }
-}
+function toMatchPlayer(user: MockUser): MatchPlayer {
+  return { id: user.id, name: user.name }
+}
+
+/**
+ * Kickoff hour at or after which a match counts as a "night game" for the
+ * Discover quick filter. Named rather than a bare `>= 18` in the comparison,
+ * and 18:00 matches the "Night (floodlit)" wording tournaments already use.
+ */
+const NIGHT_START_HOUR = 18
 
 /**
  * ============================================================
@@ -678,7 +685,8 @@ export const handlers = [
     const url = new URL(request.url)
     const format = url.searchParams.get('format')
     const date = url.searchParams.get('date')
-    const q = url.searchParams.get('q')?.trim().toLowerCase()
+    const q = url.searchParams.get('q')?.trim().toLowerCase()
+    const show = url.searchParams.get('show')
     // Defaulting here, not on the client, is what keeps every caller that
     // predates V1 working unchanged: no param means the same "upcoming only"
     // list the endpoint has always returned.
@@ -734,7 +742,30 @@ export const handlers = [
       )
     }
 
-    /**
+    /**
+     * Both quick-filter values are DERIVED, not stored — same rule as
+     * `spotsLeft` in MatchCard: a stored `isAvailable` would be a second copy
+     * of `playerCount < maxPlayers` and would desync the first time an
+     * optimistic join rolls back.
+     *
+     * "Available" means has a free spot, deliberately NOT "available to me" —
+     * that answer depends on the viewer, and the query key in useMatches holds
+     * only the filters. A viewer-dependent answer cached under a key that never
+     * mentions the viewer means logging in as someone else serves the previous
+     * person's list.
+     *
+     * getHours() reads the hour on whatever machine runs this code — here the
+     * browser, so viewer-clock and venue-clock coincide. A real backend could
+     * not: `dateTime` is an instant, while "was it a night game?" asks about
+     * the wall clock at the pitch, which needs the venue's timezone stored.
+     */
+    if (show === 'available') {
+      results = results.filter((m) => m.playerCount < m.maxPlayers)
+    } else if (show === 'night') {
+      results = results.filter((m) => new Date(m.dateTime).getHours() >= NIGHT_START_HOUR)
+    }
+
+    /**
      * Soonest first for upcoming; most recent first for past.
      *
      * The two lists answer opposite questions — "what's next?" and "what just

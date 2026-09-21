@@ -83,6 +83,12 @@ export interface MatchFilters {
   /** Free-text search across title and location. */
   q?: string
   /**
+   * Quick-filter dropdown. Only the narrowing values are stored — its "Any
+   * match" option is `undefined`, so there's one spelling of "no filter" and no
+   * pointless ?show=all in the URL.
+   */
+  show?: 'available' | 'night'
+  /**
    * Which side of the lifecycle to list. Defaults to 'upcoming' on the server,
    * so an old caller that doesn't send it keeps getting exactly what it used to.
    *

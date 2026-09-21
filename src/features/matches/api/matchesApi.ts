@@ -12,14 +12,8 @@ export async function fetchMatches(filters: MatchFilters): Promise<Match[]> {
   if (filters.format) params.set('format', filters.format)
   if (filters.date) params.set('date', filters.date)
   if (filters.q) params.set('q', filters.q)
-<<<<<<< HEAD
-  // Only sent when it's 'past'. The server already defaults to 'upcoming', so
-  // sending it explicitly would just make every ordinary URL longer for no
-  // change in behaviour.
-=======
   if (filters.show) params.set('show', filters.show)
   // The server defaults to 'upcoming', so only the narrowing value is sent.
->>>>>>> parent of bc50764 (Revert "polish comp")
   if (filters.when === 'past') params.set('when', 'past')
 
   const queryString = params.toString()
