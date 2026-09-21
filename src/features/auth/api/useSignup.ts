@@ -9,13 +9,9 @@ export function useSignup() {
   const setCredentials = useAuthStore((state) => state.setCredentials)
 
   return useMutation({
-    // RHF hands us the FULL form (including confirmPassword), but the
-    // server never needs it — it only exists to validate the form
-    // client-side. `{ confirmPassword, ...data }` is object destructuring:
-    // it pulls confirmPassword out into its own (deliberately unused,
-    // hence the leading underscore) variable, and `data` ends up holding
-    // everything else. That's how we satisfy signup()'s
-    // Omit<SignupFormValues, 'confirmPassword'> parameter type.
+    // confirmPassword is dropped here rather than in the form, so the schema
+    // stays the single description of the form and the API stays the single
+    // description of the request.
     mutationFn: ({ confirmPassword: _confirmPassword, ...data }: SignupFormValues) => signup(data),
 
     onSuccess: (data) => {

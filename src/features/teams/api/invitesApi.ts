@@ -2,11 +2,6 @@ import { authHeaders } from '../../../shared/api/authHeaders'
 import type { InvitableUser, JoinRequest, TeamInvite } from '../types'
 
 /**
- * Raw fetch calls for invites and user search. Knows HTTP, knows nothing about
- * React — same split as matchesApi.ts and teamsApi.ts.
- */
-
-/**
  * Search users to invite.
  *
  * `excludeTeamId` isn't a filter — everyone still comes back. It tells the
@@ -29,11 +24,10 @@ export async function searchUsers(
 }
 
 /**
- * My pending invites.
+ * The caller's pending invites.
  *
- * Note there's no userId argument. The recipient is whoever the token says —
- * a `?userId=` parameter would let anyone read anyone else's invites by
- * editing the URL.
+ * No userId argument on purpose: the recipient is whoever the token says. A
+ * ?userId= parameter would let anyone read anyone else's invites.
  */
 export async function fetchMyInvites(): Promise<TeamInvite[]> {
   const response = await fetch('/api/invites', { headers: authHeaders() })
@@ -54,8 +48,8 @@ export async function sendInvite(teamId: string, userId: string): Promise<void> 
 
   if (!response.ok) {
     const body = await response.json().catch(() => null)
-    // The server's message is the useful one here: "Only the captain can
-    // invite players", "already has a pending invite", "this squad is full".
+    // The server's message is the useful one: "only the captain can invite",
+    // "already has a pending invite", "this squad is full".
     throw new Error(body?.message ?? 'Could not send the invite. Please try again.')
   }
 }
@@ -77,16 +71,11 @@ export async function fetchJoinRequests(teamId: string): Promise<JoinRequest[]> 
 }
 
 /**
- * Answer a pending membership — an invite you received, OR a join request
+ * Answers a pending membership — an invite you received, or a join request
  * someone sent your team.
  *
- * ONE function for both, because it is one endpoint for both: the server works
- * out who is allowed to answer from the row's `kind`. The caller only has to
- * know the id and whether they're saying yes.
- *
- * (This was `respondToInvite` and hit `/api/invites/:id/respond`. Renamed when
- * join requests arrived — a name that describes half of what a function does
- * is worse than no name at all, because it reads as correct.)
+ * One function because it is one endpoint: the server decides who may answer
+ * from the row's `kind`, so the caller only needs the id and the verdict.
  */
 export async function respondToMembership(
   membershipId: string,

@@ -41,9 +41,8 @@ function TeamRow({
       <Avatar name={name} colour={colour} />
       <span
         className={`min-w-0 flex-1 truncate text-meta ${
-          // Once a match is played, the loser is dimmed — the fastest way to
-          // read a bracket is "who is still bold". Before it's played, both
-          // teams are equally live, so no emphasis either way.
+          // Dim the loser once played: the fastest way to read a bracket is
+          // "who is still bold". Before that both teams are equally live.
           isDecided && !isWinner ? 'text-content-faint' : 'text-content'
         }`}
       >
@@ -86,10 +85,8 @@ function MatchNode({
         />
       </div>
 
-      {/* Only 'ready' matches can take a result: 'pending' is still waiting on
-          an earlier round, 'played' already has one. That three-way status
-          comes from the server so every screen agrees — see matchStatus() in
-          mocks/handlers.ts. */}
+      {/* Only 'ready' takes a result — 'pending' is still waiting on an earlier
+          round and 'played' already has one. */}
       {isOrganiser && match.status === 'ready' && (
         <Button
           variant="secondary"
@@ -106,21 +103,12 @@ function MatchNode({
 /**
  * The bracket: one column per round, matches stacked inside.
  *
- * ---- WHY THE COLUMNS BUILD THEMSELVES ----
+ * No tree is walked. Every match carries its `round` and `slot`, so this is a
+ * group-by and a sort — which is why a half-finished bracket needs no special
+ * case and there are no parent/child links to keep in step.
  *
- * There's no bracket "tree" walked here. Every match carries a `round`, so the
- * view is just: group by round, sort by slot, render columns left to right.
- * The structure is two integers per match and one formula on the server (see
- * the advancement rule in handlers.ts) — no parent/child links to keep in step.
- *
- * That's the payoff of modelling the bracket as coordinates rather than as a
- * linked tree: rendering it is a group-by, and a half-finished bracket is not a
- * special case.
- *
- * NOTE ON STYLING: plain boxes in scrollable columns — no connector lines, no
- * curves. Those are a visual-pass job (docs/03-uiux-design-brief.md wants a
- * horizontally scrollable bracket tree); the data and layout are already in the
- * right shape for it.
+ * Styling is plain boxes in scrollable columns; connector lines are a
+ * visual-pass job (docs/03), and the data is already shaped for them.
  */
 export function BracketView({ tournament, isOrganiser, onRecordResult }: BracketViewProps) {
   const matches = tournament.matches ?? []
@@ -136,12 +124,11 @@ export function BracketView({ tournament, isOrganiser, onRecordResult }: Bracket
   const rounds = roundCount(tournament.slots)
 
   return (
-    // overflow-x-auto on the wrapper, not the page: a wide bracket scrolls
-    // inside its own box while the page itself never scrolls sideways.
+    // On the wrapper, not the page, so a wide bracket scrolls inside its own
+    // box and the page never scrolls sideways.
     <div className="overflow-x-auto">
       <div className="flex min-w-max gap-4">
-        {/* Array.from({length: rounds}) → [1, 2, 3]. Rounds are 1-indexed to
-            match the data, so +1 rather than the usual 0-based index. */}
+        {/* Rounds are 1-indexed to match the data, hence the +1. */}
         {Array.from({ length: rounds }, (_, i) => i + 1).map((round) => {
           const roundMatches = matches
             .filter((m) => m.round === round)

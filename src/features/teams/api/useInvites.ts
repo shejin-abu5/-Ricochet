@@ -3,12 +3,9 @@ import { fetchJoinRequests, fetchMyInvites, searchUsers } from './invitesApi'
 import { useAuthStore } from '../../auth/authStore'
 
 /**
- * A third key tree, same shape as matchKeys and teamKeys.
- *
- * Invites get their OWN prefix rather than living under ['teams'] — they are a
- * different entity with a different lifecycle, and the inbox should not be
- * refetched every time a team changes. Key prefixes are how you draw those
- * lines, so draw them where the entities actually are.
+ * Invites get their own prefix rather than living under ['teams']: different
+ * entity, different lifecycle, and the inbox should not refetch every time a
+ * team changes.
  */
 export const inviteKeys = {
   all: ['invites'] as const,
@@ -20,19 +17,12 @@ export const inviteKeys = {
 }
 
 /**
- * My pending invites. Powers both the inbox page and the count badge.
+ * The caller's pending invites. Powers both the inbox page and the count badge,
+ * which share one cache entry rather than fetching twice.
  *
- * ---- ONE QUERY, TWO CONSUMERS, NO DUPLICATION ----
- *
- * The badge on the Teams page and the list on the inbox page call this same
- * hook. They do NOT fetch twice: identical query key, so the second caller
- * reads the cache the first one filled.
- *
- * This is the point docs/02-app-flow.md flow 8 makes about notification
- * counts. The instinct is to put the number in Zustand so the badge can read
- * it "cheaply". Don't — you'd then be maintaining a copy of server data by
- * hand, and it will be wrong the first time someone accepts an invite in
- * another tab. Derive it: `invites?.length ?? 0`.
+ * The badge count is derived (`invites?.length ?? 0`) rather than mirrored into
+ * Zustand — a hand-maintained copy goes wrong the first time someone accepts an
+ * invite in another tab. See docs/02 flow 8.
  */
 export function useMyInvites() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
@@ -41,35 +31,18 @@ export function useMyInvites() {
     queryKey: inviteKeys.mine(),
     queryFn: fetchMyInvites,
 
-    /**
-     * ---- `enabled` — the new TanStack option this phase ----
-     *
-     * A query with `enabled: false` doesn't run and sits in a pending state.
-     * Here it stops a logged-out visitor firing a request that can only ever
-     * return 401 — the badge simply doesn't render for guests.
-     *
-     * The general rule: use `enabled` when the query is MEANINGLESS without
-     * some precondition (no token, no id, no search text yet). Don't use it as
-     * a way to "wait" for something — Query already handles that by refetching
-     * when the key changes.
-     */
+    // Stops a logged-out visitor firing a request that can only return 401.
     enabled: isAuthenticated,
   })
 }
 
 /**
- * The join requests waiting on a captain's approval, for ONE team.
+ * Join requests waiting on a captain's approval, for one team.
  *
- * ---- WHY `enabled` MATTERS HERE MORE THAN USUAL ----
- *
- * This endpoint returns 403 to anyone who is not the captain. The panel that
- * calls it is only rendered for the captain — but "only rendered for" is a
- * rule about the CURRENT render, and a query fires from an effect.
- *
- * Passing `enabled: isCaptain` makes the precondition explicit at the data
- * layer instead of relying on a parent component's conditional to hold
- * forever. Cheap insurance against a refactor that moves the panel somewhere
- * less careful and starts firing 403s that nobody notices in the console.
+ * The endpoint 403s non-captains. The calling panel only renders for the
+ * captain, but that is a rule about the current render while a query fires from
+ * an effect — passing `enabled` puts the precondition at the data layer, where a
+ * refactor that moves the panel cannot quietly start firing 403s.
  */
 export function useJoinRequests(teamId: string, enabled: boolean) {
   return useQuery({
@@ -80,18 +53,13 @@ export function useJoinRequests(teamId: string, enabled: boolean) {
   })
 }
 
-/**
- * Search users to invite to a team.
- *
- * Two options doing real work here.
- */
+/** Search users to invite to a team. */
 export function useUserSearch(teamId: string, q: string) {
   const trimmed = q.trim()
 
   return useQuery({
-    // `q` is IN the key. Miss that and every search would reuse the first
-    // result and the box would appear broken — the classic query-key bug from
-    // Phase 2a, in a place it's easy to forget.
+    // `q` must be in the key, or every search reuses the first result and the
+    // box appears broken.
     queryKey: inviteKeys.userSearch(teamId, trimmed),
     queryFn: () => searchUsers(trimmed, teamId),
 
@@ -99,16 +67,9 @@ export function useUserSearch(teamId: string, q: string) {
     // matches half the table. Two characters is a reasonable floor.
     enabled: trimmed.length >= 2,
 
-    /**
-     * Search results go stale fast in principle, but not within the few
-     * seconds someone spends picking a name — and refetching every time the
-     * component remounts would make the picker flicker. 30s is a sensible
-     * middle.
-     *
-     * `staleTime` = how long Query treats cached data as fresh enough to
-     * serve WITHOUT a background refetch. It defaults to 0, which is why
-     * everything else in this app refetches so eagerly.
-     */
+    // Results do not meaningfully change within the few seconds spent picking a
+    // name, and the default staleTime of 0 would make the picker flicker on
+    // every remount.
     staleTime: 30_000,
   })
 }

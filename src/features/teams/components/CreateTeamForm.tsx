@@ -8,11 +8,7 @@ import { avatarColours, type AvatarColour } from '../../../shared/components/ava
 import { useCreateTeam } from '../api/useCreateTeam'
 import { createTeamSchema, type CreateTeamFormValues } from '../schemas'
 
-/**
- * Built with a loop rather than seven hand-written <option> tags. Less to
- * read, and impossible to end up with "4 times a week" sitting at value="5"
- * because someone copy-pasted a line and missed a digit.
- */
+// Generated rather than hand-written, so a label and its value cannot drift.
 const playsPerWeekOptions = Array.from({ length: 7 }, (_, i) => {
   const times = i + 1
   return { value: String(times), label: times === 1 ? 'Once a week' : `${times} times a week` }
@@ -34,36 +30,13 @@ export function CreateTeamForm() {
   const createTeam = useCreateTeam()
 
   /**
-   * ============================================================
-   *  READING VALUES AS YOU TYPE — the new RHF idea this phase
-   * ============================================================
+   * The live badge preview has to re-render as you type, which gives up the
+   * uncontrolled-form advantage for these two fields only.
    *
-   * Every form so far has been WRITE-ONLY: type things, submit, done. The
-   * component never needed to know what was in the fields — which is exactly
-   * why RHF is fast. It leaves values in the DOM and does not re-render on
-   * keystrokes.
-   *
-   * The live badge preview below needs the opposite: it has to re-render as
-   * you type. So you deliberately give up that advantage for these two fields.
-   *
-   * ---- WHY `useWatch` AND NOT `watch` ----
-   *
-   * RHF offers both. `watch('name')` does the same job in one less line, and
-   * it is what most tutorials show. It is worse here for two reasons:
-   *
-   *   1. `watch` re-renders THIS ENTIRE COMPONENT on every keystroke — every
-   *      field, every swatch, the button, all of it. `useWatch` subscribes
-   *      more narrowly. On a form this size neither is noticeable; on a
-   *      30-field form the difference is very noticeable.
-   *
-   *   2. Our linter flags `watch` outright: React Compiler cannot safely
-   *      memoize a component that uses it, so it silently skips optimising
-   *      this component altogether. Run `npm run lint` after switching this
-   *      back to `watch` and you can watch the warning appear.
-   *
-   * That second one is worth internalising: React Compiler works by proving
-   * things about your code. APIs it cannot reason about do not break — they
-   * just quietly opt you out of the optimisation.
+   * useWatch rather than watch: watch re-renders the whole component on every
+   * keystroke, and the linter flags it because React Compiler cannot memoize a
+   * component that uses it — it silently skips optimising this file instead of
+   * failing.
    */
   const name = useWatch({ control, name: 'name' })
   const colour = useWatch({ control, name: 'colour' }) as AvatarColour
@@ -99,9 +72,8 @@ export function CreateTeamForm() {
         {...register('homeGround')}
       />
 
-      {/* valueAsNumber converts "3" → 3 as the value leaves the input, so the
-          Zod schema can be a plain z.number(). See the long note in
-          schemas.ts for why this beats z.coerce.number(). */}
+      {/* valueAsNumber converts at the form boundary so the schema can stay a
+          plain z.number() — see schemas.ts. */}
       <SelectField
         label="How often do you play?"
         options={playsPerWeekOptions}
@@ -110,10 +82,8 @@ export function CreateTeamForm() {
       />
 
       <fieldset className="flex flex-col gap-2">
-        {/* <legend> is the accessible label for a GROUP of inputs. A plain
-            <label> can only point at one control, so radio groups need this —
-            otherwise a screen reader reads six unlabelled radios with no idea
-            what they are choosing between. */}
+        {/* <legend> labels the GROUP; a <label> can only point at one control,
+            so without it this is six unlabelled radios. */}
         <legend className="text-meta font-medium text-content">Badge colour</legend>
 
         <div className="flex flex-wrap gap-2">
@@ -124,10 +94,8 @@ export function CreateTeamForm() {
                 colour === option ? 'border-primary' : 'border-transparent'
               }`}
             >
-              {/* sr-only hides the radio visually but keeps it in the
-                  accessibility tree and keyboard tab order — the swatch beside
-                  it IS the visual control. Using `display: none` or removing
-                  the input would make this unusable without a mouse. */}
+              {/* sr-only, not display:none — the swatch is the visual control,
+                  but the radio has to stay focusable and announceable. */}
               <input
                 type="radio"
                 value={option}

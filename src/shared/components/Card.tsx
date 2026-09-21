@@ -13,21 +13,12 @@ interface CardProps {
 }
 
 /**
- * A raised surface. Deliberately knows NOTHING about matches, teams or
- * players — that's what makes it reusable across every feature.
+ * A raised surface. Knows nothing about the domain, which is what keeps it in
+ * shared/ while MatchCard lives in features/.
  *
- * Compare with MatchCard, which DOES understand our domain and therefore lives
- * in features/. That's the line between shared/ and features/.
- *
- * ---- HOW DEPTH WORKS IN A DARK THEME ----
- *
- * In a light theme you raise a surface with a drop shadow. On a near-black
- * background a shadow is invisible — there's nothing darker to cast onto. So
- * dark UIs separate planes by LIGHTNESS instead: the card is lighter than the
- * canvas, and a subtle border sharpens the edge.
- *
- * That's the whole reason the token scale is canvas → surface → raised →
- * hover rather than a set of shadow values.
+ * Depth comes from lightness, not shadow: on a near-black canvas there is
+ * nothing darker to cast onto, which is why the token scale runs canvas →
+ * surface → raised → hover rather than a set of shadow values.
  */
 export function Card({ children, className = '', interactive = false }: CardProps) {
   return (

@@ -28,16 +28,7 @@ function TeamProfileSkeleton() {
   )
 }
 
-/**
- * /teams/:id — team profile (docs/02-app-flow.md flow 5, docs/03 §4).
- *
- * The same four states as every other read screen: loading, error, not found,
- * success. Fourth time now — it should be automatic by this point.
- *
- * The new idea on this screen is ROLE-BASED UI: the captain sees a Manage
- * section that members don't. Read the long comment on that block below; it is
- * the part that matters.
- */
+/** /teams/:id — team profile (docs/02-app-flow.md flow 5, docs/03 §4). */
 export function TeamProfilePage() {
   const { id = '' } = useParams()
   const { data: team, isPending, isError, error, refetch } = useTeam(id)
@@ -73,7 +64,7 @@ export function TeamProfilePage() {
     )
   }
 
-  // ONE derived boolean drives every captain-only piece of this page.
+  // One derived boolean drives every captain-only piece of this page.
   const youAreCaptain = isCaptain(team, currentUserId)
   const { wins, losses, draws } = team.record
 
@@ -115,8 +106,6 @@ export function TeamProfilePage() {
           <div>
             <dt className="text-label text-content-muted">Plays</dt>
             <dd className="text-meta text-content">
-              {/* Ternary for the plural. "1 times a week" is the kind of small
-                  wrongness that makes an app feel unfinished. */}
               {team.playsPerWeek === 1
                 ? 'Once a week'
                 : `${team.playsPerWeek} times a week`}
@@ -128,9 +117,6 @@ export function TeamProfilePage() {
       <Card>
         <h2 className="text-meta font-medium text-content">Record</h2>
         <div className="mt-3 flex gap-6">
-          {/* An array + map rather than three near-identical blocks of JSX.
-              Adding "clean sheets" later means adding one line, not copying a
-              div and hoping you changed every label inside it. */}
           {[
             { label: 'Won', value: wins },
             { label: 'Lost', value: losses },
@@ -148,30 +134,11 @@ export function TeamProfilePage() {
         <RosterList team={team} currentUserId={currentUserId} />
       </Card>
 
-      {/**
-       * ============================================================
-       *  ROLE-BASED UI — and why it is NOT security
-       * ============================================================
-       *
-       * `youAreCaptain &&` means members never render this block. Good UX:
-       * showing people buttons they cannot use is noise.
-       *
-       * But understand exactly what it buys you: NOTHING, security-wise.
-       *
-       * Anyone can open devtools, delete the condition, and click the button.
-       * Anyone can skip the UI entirely and POST straight to the endpoint —
-       * your React app is not in the way of that. Hiding a control makes the
-       * app pleasant to use; it does not make it safe.
-       *
-       * THE RULE: the UI decides what to SHOW. The server decides what to
-       * ALLOW. Both, always. When Phase 3b adds the real invite endpoint, it
-       * checks `team.captainId === user.id` server-side and returns 403 if not
-       * — regardless of what this component chose to render.
-       *
-       * That is the same thread as `maxPlayers` in Phase 2b and
-       * identity-from-token in Phase 2c, and it answers the obvious question:
-       * "you hid the admin button — is that enough?" No.
-       */}
+      {/* Role-based UI, which is presentation and not security: anyone can
+          delete this condition in devtools, or POST to the endpoint directly.
+          The UI decides what to SHOW, the server decides what to ALLOW — the
+          invite and update endpoints check captainId and 403 regardless of what
+          this renders. */}
       {youAreCaptain && (
         <Card>
           <h2 className="text-meta font-medium text-content">Manage</h2>
@@ -179,21 +146,9 @@ export function TeamProfilePage() {
             You&rsquo;re the captain of this team.
           </p>
 
-          {/* Honest placeholder: the button exists so the shape of the screen
-              is right, and is disabled because the flow behind it isn't built.
-              A button that looks live and does nothing is worse than one that
-              says so. */}
-          {/**
-           * The panels themselves moved to /teams/:id/manage.
-           *
-           * They were inline here, and the profile page was turning into two
-           * pages fighting over one screen: a public thing everyone reads, and
-           * a private thing exactly one person uses. Splitting on AUDIENCE
-           * rather than on entity keeps each page about one job.
-           *
-           * A link, not a duplicate of the panels — one implementation, one
-           * place to fix it.
-           */}
+          {/* The management panels live at /teams/:id/manage rather than inline:
+              this page is public and that one is for exactly one person, and
+              splitting on audience keeps each about one job. */}
           <Link to={`/teams/${team.id}/manage`} className="mt-3 block">
             <Button variant="secondary" className="w-full">
               Manage team
@@ -202,9 +157,8 @@ export function TeamProfilePage() {
         </Card>
       )}
 
-      {/* Sticky above the bottom nav, same as the Join button on a match —
-          the primary action stays reachable however long the roster gets.
-          Renders nothing at all for the captain (see JoinTeamButton). */}
+      {/* Sticky so the primary action stays reachable however long the roster
+          gets. Renders nothing for the captain. */}
       <div className="sticky bottom-20 z-10">
         <JoinTeamButton team={team} />
       </div>

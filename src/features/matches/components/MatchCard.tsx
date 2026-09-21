@@ -10,14 +10,11 @@ interface MatchCardProps {
 }
 
 /**
- * Formats an ISO date string into something human, e.g. "Sat, 6:30 PM".
+ * Formats an ISO timestamp for a card header, e.g. "Today, 6:30 PM".
  *
- * Intl.DateTimeFormat is built into the browser — no date library needed for
- * something this simple. (Reach for date-fns only once you need real date
- * MATH, like "3 days ago" or timezone conversion.)
- *
- * Defined outside the component on purpose: if it were inside, a new copy of
- * this function would be created on every single render, for no benefit.
+ * Only today and tomorrow are special-cased — past that, a weekday reads more
+ * clearly than "in 4 days". Intl covers this; a date library is only warranted
+ * once real date math is needed.
  */
 function formatMatchDate(iso: string): string {
   const date = new Date(iso)
@@ -27,9 +24,6 @@ function formatMatchDate(iso: string): string {
 
   const time = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 
-  // "Today, 6:30 PM" reads faster than a date you have to decode — and it's
-  // what the reference does. Only worth special-casing the two days people
-  // actually care about; beyond that a weekday is clearer than "in 4 days".
   if (date.toDateString() === today.toDateString()) return `Today, ${time}`
   if (date.toDateString() === tomorrow.toDateString()) return `Tomorrow, ${time}`
 
@@ -37,33 +31,23 @@ function formatMatchDate(iso: string): string {
 }
 
 export function MatchCard({ match }: MatchCardProps) {
-  // DERIVED state: calculated from props during render, NOT stored in useState.
-  // Storing this would mean keeping it in sync with playerCount forever — a
-  // classic source of bugs. If you can calculate it, calculate it.
   const spotsLeft = match.maxPlayers - match.playerCount
   const isFull = spotsLeft <= 0
-
-  // V1 — see the same derivation in MatchDetailPage.tsx.
   const isCancelled = match.status === 'cancelled'
   const isCompleted = match.status === 'completed'
 
   return (
-    // The whole card is a link — a much bigger tap target than a small "view"
-    // button, which matters on the mobile-first design the brief calls for.
+    // The whole card is the link rather than a "view" button, for a tap target
+    // that works on the mobile-first layout in docs/03.
     <Link to={`/matches/${match.id}`} className="block">
       <Card interactive className="flex h-full flex-col">
-        {/* Row 1: category tag left, when-it-is right — the reference's
-            card header. The date sits in the accent colour because "when" is
-            the thing people scan a list of matches for. */}
         <div className="flex items-start justify-between gap-3">
           <Badge tag variant="neutral">
             Pickup
           </Badge>
-          {/* The reference puts the date in the accent colour. Kept as plain
-              light text instead: on a grid of eight cards, eight lime dates is
-              exactly the "everything is shouting" problem. It's still the
-              brightest thing in the card header because it's `text-content`
-              against `text-content-muted` metadata below. */}
+          {/* The reference puts the date in lime. Kept plain: eight lime dates
+              in a grid is the "everything is shouting" problem. It still leads
+              the header as text-content against muted metadata below. */}
           <span className="text-label font-medium text-content">
             {formatMatchDate(match.dateTime)}
           </span>
@@ -73,9 +57,8 @@ export function MatchCard({ match }: MatchCardProps) {
 
         <p className="mt-1.5 flex items-center gap-1.5 text-meta text-content-muted">
           <MapPin size={14} weight="fill" className="shrink-0 text-content-faint" />
-          {/* truncate needs min-w-0 to work inside a flex row — a well-known
-              flexbox gotcha: flex items refuse to shrink below their content
-              width unless you explicitly allow it. */}
+          {/* min-w-0 is required for truncate inside a flex row — flex items
+              won't shrink below their content width without it. */}
           <span className="min-w-0 truncate">{match.location}</span>
         </p>
 
@@ -84,23 +67,12 @@ export function MatchCard({ match }: MatchCardProps) {
           <Badge>{match.skillLevel}</Badge>
         </div>
 
-        {/* mt-auto pushes this footer to the bottom of the card, so cards of
-            different heights in a grid still line their footers up. */}
-        {/* A hairline above the footer separates "what this match is" from
-            "how full it is" — the two questions the card answers. Cheaper on
-            the eye than another gap, and it makes the footers line up across a
-            row of cards even when titles wrap to different heights. */}
+        {/* mt-auto plus the hairline keeps footers aligned across a row of
+            cards whose titles wrap to different heights. */}
         <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-3">
           <div className="flex items-center gap-2">
-            {/**
-             * V1: what the dots COUNT changes with the lifecycle.
-             *
-             *   completed  turnout against the roster — "9 of 11 turned up"
-             *   otherwise  seats filled against capacity — "8/10"
-             *
-             * A completed match still showing "14/14" would be answering a
-             * question nobody is asking any more: whether you can get in.
-             */}
+            {/* A completed match counts turnout against the roster, not seats
+                against capacity — "can I get in" is no longer the question. */}
             {isCompleted ? (
               <>
                 <SlotDots
@@ -114,9 +86,8 @@ export function MatchCard({ match }: MatchCardProps) {
             ) : (
               <>
                 <SlotDots filled={match.playerCount} total={match.maxPlayers} />
-                {/* `tabular` = fixed-width digits, so the number doesn't jump
-                    around as it changes — which it does, optimistically, the
-                    instant someone taps Join. */}
+                {/* `tabular` stops the count shifting width when an optimistic
+                    join changes it under the cursor. */}
                 <span className="tabular text-meta text-content-muted">
                   {match.playerCount}/{match.maxPlayers}
                 </span>
@@ -124,16 +95,9 @@ export function MatchCard({ match }: MatchCardProps) {
             )}
           </div>
 
-          {/**
-           * Semantic colours, not brand colour: green = you can still join,
-           * red = you can't. That's information, and information gets the
-           * status palette. Lime is reserved for actions.
-           *
-           * V1 adds two more states to the same slot rather than a second
-           * badge beside it. One badge, one answer to "what's the situation
-           * with this match" — a card that can show two status pills at once
-           * makes the reader work out which of them wins.
-           */}
+          {/* One badge covers all four states rather than stacking pills:
+              two status pills at once makes the reader decide which wins.
+              Semantic colours, not brand — lime is reserved for actions. */}
           {isCancelled ? (
             <Badge variant="danger">Cancelled</Badge>
           ) : isCompleted ? (

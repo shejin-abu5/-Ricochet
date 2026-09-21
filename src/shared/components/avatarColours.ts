@@ -1,42 +1,22 @@
 /**
- * The Avatar palette, split out of Avatar.tsx.
+ * The Avatar palette, split out of Avatar.tsx so that file only exports
+ * components.
  *
- * ---- WHY A SEPARATE FILE AT ALL? ----
- *
- * This started life inside Avatar.tsx and the linter objected:
- *
- *   "Fast refresh only works when a file only exports components."
- *
- * FAST REFRESH updates the browser when you save WITHOUT losing state — your
- * half-filled form stays filled. It does that by swapping component functions
- * in place, which is only safe if the file contains nothing else. Export a
- * runtime constant alongside and it gives up and full-reloads.
- *
- * Not a bug — just editing a form, saving, and finding it blank, all day. A
- * type-only export would have been fine (types vanish at build time); it's the
- * runtime `avatarColours` array that forces the split.
+ * Fast Refresh swaps component functions in place and preserves state, which it
+ * can only do when a file exports nothing else — a runtime export alongside a
+ * component forces a full reload on every save. A type-only export would have
+ * been fine; the `avatarColours` array is what forces the split.
  */
 
 export type AvatarColour = 'lime' | 'emerald' | 'sky' | 'violet' | 'amber' | 'slate'
 
 /**
- * TAILWIND GOTCHA: Tailwind scans source for COMPLETE class names at build
- * time. It has no idea what your code does at runtime, so
+ * Written out in full because Tailwind scans for complete class names at build
+ * time — an interpolated `bg--500/15` produces no CSS at all.
  *
- *   className={`bg-${colour}-500/15`}     // ❌ produces no CSS at all
- *
- * finds nothing, because that string never appears literally anywhere. Every
- * class has to be written out in full somewhere — which is what this table is.
- *
- * ---- DESIGN NOTE FOR THE DARK THEME ----
- *
- * These are tinted BACKGROUNDS with matching bright text, not solid fills.
- * A solid colour block on a dark canvas fights with the brand lime for
- * attention; a 15%-opacity tint reads as "identity" without competing with
- * anything you're actually meant to click.
- *
- * 'lime' deliberately uses the brand primary, so a team can carry the app's
- * accent colour. It's listed first because it's the obvious default choice.
+ * Tinted backgrounds with bright text rather than solid fills: a solid block on
+ * a dark canvas competes with the brand lime for attention. 'lime' uses the
+ * brand primary so a team can carry the app's accent.
  */
 const colourClasses: Record<AvatarColour, string> = {
   lime: 'bg-primary/15 text-primary',

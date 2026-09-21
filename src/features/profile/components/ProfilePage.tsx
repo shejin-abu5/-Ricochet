@@ -23,37 +23,16 @@ function ProfileSkeleton() {
 }
 
 /**
- * /profile — the profile card: overview, skills, current teams.
+ * /profile — overview, skills and current teams.
  *
- * ============================================================
- *  LOADING GRANULARITY — the idea worth taking from this page
- * ============================================================
+ * Two queries run here, and each section owns its own loading state rather than
+ * one skeleton covering the page: a single boundary makes every section as slow
+ * as the slowest request, and lets one failing endpoint blank content that was
+ * ready. Overview and skills gate on the profile; MyTeamsCard fetches and gates
+ * itself.
  *
- * This page runs TWO queries: the profile (/api/me) and my teams
- * (/api/me/teams). The obvious thing is to wait for both and show one skeleton
- * over everything.
- *
- * Don't. That makes every section as slow as the SLOWEST request, and it means
- * one failing endpoint blanks a page that could have shown two thirds of its
- * content perfectly well.
- *
- * Instead each section owns its own state:
- *
- *   overview + skills  →  need the profile, so this page gates them
- *   current teams      →  MyTeamsCard fetches and gates itself
- *
- * So the profile arrives and renders while the teams request is still in
- * flight, and a teams failure shows a retry inside that one card while
- * everything else stays usable.
- *
- * THE RULE: put the loading boundary where the DATA boundary is. One spinner
- * per page is the default because it's easy, not because it's right.
- *
- * ---- ON STYLING ----
- *
- * Structure and data only, deliberately kept plain. The visual pass happens
- * once functionality is complete — see docs/03-uiux-design-brief.md for the
- * intended direction and the note in docs/11.
+ * Styling is deliberately plain — the visual pass comes once functionality is
+ * complete (docs/03, docs/11).
  */
 export function ProfilePage() {
   const { data: profile, isPending, isError, refetch } = useMyProfile()
@@ -76,9 +55,8 @@ export function ProfilePage() {
         />
       )}
 
-      {/* Both of these need the profile, so they render together once it's
-          here. Two cards rather than one, because "who you are" and "how you
-          play" are different questions and will grow at different rates. */}
+      {/* Two cards, not one: "who you are" and "how you play" are different
+          questions that will grow at different rates. */}
       {profile && (
         <>
           <Card>
@@ -94,9 +72,8 @@ export function ProfilePage() {
         </>
       )}
 
-      {/* Independent of the profile query — renders its own skeleton, its own
-          error, its own empty state. Deliberately OUTSIDE the `profile &&`
-          above, so a slow or failed profile request doesn't hide it. */}
+      {/* Deliberately outside the `profile &&` above, so a slow or failed
+          profile request cannot hide it. */}
       <Card>
         <h2 className="text-meta font-medium text-content">Current teams</h2>
         <div className="mt-3">

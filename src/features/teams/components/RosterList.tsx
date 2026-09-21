@@ -11,21 +11,15 @@ interface RosterListProps {
 /**
  * The team roster.
  *
- * Takes the WHOLE team rather than just `team.members`, which looks like it
- * breaks the "pass the smallest thing" rule PlayerList follows. It doesn't —
- * this component needs `captainId` as well, and passing
- * `members={...} captainId={...}` as two props invites a caller to pass a
- * roster from one team and a captainId from another.
- *
- * PASS THINGS THAT BELONG TOGETHER, TOGETHER. Splitting a coherent object into
- * loose props creates combinations that should be impossible.
+ * Takes the whole team rather than `members` + `captainId` as loose props,
+ * which would let a caller pass a roster from one team and a captainId from
+ * another.
  */
 export function RosterList({ team, currentUserId }: RosterListProps) {
   const full = isTeamFull(team)
-  // Math.max(0, …) guards against a negative count if the server ever reports
-  // more members than the cap (an old team from before the cap was lowered,
-  // say). Array.from({ length: -3 }) doesn't throw — it silently gives you an
-  // empty array, so this bug would just be missing UI with no error anywhere.
+  // Math.max guards a team that predates a lowered cap. Array.from with a
+  // negative length does not throw, it silently yields [] — so the symptom
+  // would be missing UI with no error anywhere.
   const openSpots = Math.max(0, team.maxMembers - team.members.length)
 
   return (
@@ -38,8 +32,6 @@ export function RosterList({ team, currentUserId }: RosterListProps) {
           </span>
         </h2>
 
-        {/* Status in one glance, per the "readable in under a second" rule in
-            docs/03-uiux-design-brief.md. */}
         <Badge variant={full ? 'danger' : 'success'}>
           {full ? 'Squad full' : `${openSpots} open`}
         </Badge>
@@ -72,8 +64,6 @@ export function RosterList({ team, currentUserId }: RosterListProps) {
             return 0
           })
           .map((member) => {
-            // Both derived from data already on screen. Nothing stored, so
-            // nothing can fall out of sync.
             const memberIsCaptain = member.id === team.captainId
             const isYou = member.id === currentUserId
 
@@ -93,10 +83,8 @@ export function RosterList({ team, currentUserId }: RosterListProps) {
             )
           })}
 
-        {/* Open spots, drawn as dashed circles — the same device PlayerList
-            uses for a match. Seeing the shape of what's missing reads faster
-            than the number alone: you can tell at a glance whether this squad
-            needs one more player or eight. */}
+        {/* Dashed circles for open spots: the shape of what is missing tells
+            you at a glance whether the squad needs one more player or eight. */}
         {Array.from({ length: openSpots }).map((_, i) => (
           <li key={`open-${i}`} className="flex items-center gap-3">
             <span

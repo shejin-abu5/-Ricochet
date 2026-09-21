@@ -16,7 +16,6 @@ interface MatchListProps {
   hasFilters: boolean
 }
 
-/** One grey placeholder card, shaped roughly like a real MatchCard. */
 function MatchCardSkeleton() {
   return (
     <Card>
@@ -35,33 +34,19 @@ function MatchCardSkeleton() {
   )
 }
 
-/**
- * The card grid: one column on a phone, two from `sm` up.
- *
- * `items-stretch` (the grid default) makes every card in a row the same
- * height, and MatchCard's `mt-auto` footer then pins the player count to the
- * bottom of each — so the footers line up across a row even when one title
- * wraps to two lines and its neighbour doesn't.
- */
+// The grid's default items-stretch equalises card heights per row, which is
+// what lets MatchCard's mt-auto footer line up across a row when one title
+// wraps to two lines and its neighbour doesn't.
 const gridClasses = 'grid grid-cols-1 gap-3 sm:grid-cols-2'
 
 /**
- * FOUR STATES, handled explicitly and in this order. Every list screen in
- * every app has these same four, and forgetting one is how you get a blank
- * white screen users can't recover from:
+ * Renders the loading, error, empty and success states of a match list.
  *
- *   1. loading  — first fetch, nothing to show yet   → skeletons
- *   2. error    — request failed                     → message + RETRY button
- *   3. empty    — request worked, zero results       → explain + a way out
- *   4. success  — actual data                        → the list
+ * Error and empty stay distinct: "no matches found" while the server is down
+ * tells the user to widen filters that aren't the problem.
  *
- * Note 2 and 3 are different! "It broke" and "there's nothing here" need
- * different words and different escape routes. Merging them ("No matches
- * found" when the server is actually down) actively misleads people.
- *
- * This component takes plain props rather than calling useMatches itself.
- * That keeps it dumb and reusable — the team profile screen can render the
- * same list later without inheriting Discover's filtering logic.
+ * Takes plain props rather than calling useMatches itself, so other screens can
+ * reuse it without inheriting Discover's filtering.
  */
 export function MatchList({
   matches,
@@ -72,14 +57,11 @@ export function MatchList({
   onClearFilters,
   hasFilters,
 }: MatchListProps) {
-  // 1. LOADING
   if (isPending) {
     return (
-      // aria-busy on the CONTAINER, with the individual skeletons aria-hidden.
-      // A screen reader hears "busy" once, rather than a stream of empty boxes.
+      // aria-busy on the container so a screen reader hears "busy" once rather
+      // than a stream of empty boxes.
       <div aria-busy="true" className={gridClasses}>
-        {/* Array.from({ length: 4 }) makes an array of 4 empty slots to map
-            over — a compact way to repeat something a fixed number of times. */}
         {Array.from({ length: 4 }).map((_, i) => (
           <MatchCardSkeleton key={i} />
         ))}
@@ -87,8 +69,7 @@ export function MatchList({
     )
   }
 
-  // 2. ERROR — the design brief insists errors are recoverable, not dead ends,
-  // so this always offers a retry rather than only stating the problem.
+  // Always offers a retry: docs/03 treats errors as recoverable, not dead ends.
   if (isError) {
     return (
       <EmptyState
@@ -103,7 +84,6 @@ export function MatchList({
     )
   }
 
-  // 3. EMPTY
   if (!matches || matches.length === 0) {
     return (
       <EmptyState
@@ -124,21 +104,15 @@ export function MatchList({
     )
   }
 
-  // 4. SUCCESS
   return (
-    // While a background refetch runs (e.g. you just changed a filter), dim
-    // the list slightly. `placeholderData` in useMatches keeps the OLD results
-    // on screen during that moment, and this is the subtle hint that what
-    // you're looking at is about to update.
+    // useMatches keeps the previous results on screen during a refetch, so this
+    // dim is the only cue that what you're reading is about to change.
     <div
       className={`${gridClasses} transition-opacity ${
         isFetching ? 'opacity-60' : 'opacity-100'
       }`}
     >
       {matches.map((match) => (
-        // `key` lets React track which item is which across re-renders, so it
-        // can move/reuse DOM nodes instead of rebuilding the list. Always use
-        // a stable ID — using the array index breaks when items reorder.
         <MatchCard key={match.id} match={match} />
       ))}
     </div>

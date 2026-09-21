@@ -7,45 +7,24 @@ import { useUiStore } from '../../../shared/uiStore'
 import type { Team, TeamMember } from '../types'
 
 /**
- * ============================================================
- *  WHEN AN OPTIMISTIC UPDATE HAS TO BE TAKEN BACK OUT
- * ============================================================
+ * Join and leave for teams.
  *
- * This file used to hold TWO optimistic mutations: join and leave. Joining is
- * no longer optimistic, and the reason is worth more than the code was.
+ * Joining is NOT optimistic, though it used to be. It now creates a request the
+ * captain approves, and an optimistic update can only predict an outcome you
+ * control. Drawing yourself onto the roster here would be a lie the code never
+ * corrects — rollback runs on failure, and this mutation succeeds; the user
+ * would sit in the team until a refetch quietly removed them.
  *
- * Joining a team used to put you straight on the roster. Now it creates a
- * REQUEST that the captain approves — and that breaks the one condition
- * optimism depends on:
- *
- *   YOU CAN ONLY PREDICT A RESULT YOU CONTROL.
- *
- * The old join was safe to predict: the server's answer was a foregone
- * conclusion given a spare slot. The new one is somebody else's decision, days
- * away. There is nothing to draw optimistically, because the honest answer
- * after the request succeeds is "you asked, now wait" — which is not a roster
- * change at all.
- *
- * Drawing yourself onto the roster here would be a *lie the code never
- * corrects*: rollback only happens when the mutation FAILS, and this mutation
- * succeeds. The user would see themselves in the team until the next refetch
- * quietly removed them.
- *
- * > Optimism is for operations whose outcome you already know. The moment a
- * > human has to say yes, you are guessing, not predicting.
- *
- * LEAVING is still optimistic, and the contrast is right here in one file:
- * leaving is entirely yours to do, needs nobody's approval, and the server
- * cannot reasonably refuse (bar the captain rule, which the UI checks first).
+ * Leaving stays optimistic: it is entirely yours to do and needs nobody's
+ * approval.
  */
 
 type TeamUpdater = (team: Team) => Team
 
 /**
- * The list and detail caches hold DIFFERENT data — GET /api/teams strips
- * `members` — so each needs its own updater. Patching a stripped list row with
- * the detail updater would invent a one-person roster that the server never
- * sent. See docs/08 for the full note.
+ * Separate updaters per cache, because GET /api/teams strips `members`:
+ * running the detail updater over a stripped list row would invent a
+ * one-person roster the server never sent.
  */
 function patchTeamEverywhere(
   queryClient: QueryClient,
@@ -83,9 +62,6 @@ function restoreTeamCaches(
   }
 }
 
-/**
- * Ask to join. Plain mutation — no optimistic update, for the reason above.
- */
 export function useRequestToJoinTeam(teamId: string) {
   const queryClient = useQueryClient()
   const showToast = useUiStore((state) => state.showToast)
@@ -94,19 +70,9 @@ export function useRequestToJoinTeam(teamId: string) {
     mutationFn: () => requestToJoinTeam(teamId),
 
     onSuccess: () => {
-      /**
-       * Which caches did this change?
-       *
-       *   ['teams']    ✅ but ONLY the detail entry's `yourRequestStatus`,
-       *                   which flips to 'pending' and turns the button into
-       *                   "Request sent". No roster changed.
-       *   ['invites']  ✅ the captain's approval queue lives under this prefix
-       *                   and now has one more row in it.
-       *
-       * The second one is easy to miss, because from this screen nothing about
-       * invites is visible. Ask what changed ON THE SERVER, not what is on
-       * screen — the habit from docs/09.
-       */
+      // Also invalidates invites, which is easy to miss from this screen: the
+      // captain's approval queue lives under that prefix and now has a new row.
+      // Ask what changed on the server, not what is visible.
       queryClient.invalidateQueries({ queryKey: teamKeys.all })
       queryClient.invalidateQueries({ queryKey: inviteKeys.all })
 
@@ -114,16 +80,11 @@ export function useRequestToJoinTeam(teamId: string) {
     },
 
     onError: (error) => {
-      // e.g. "You already have something pending with this team".
       showToast(error.message, 'error')
     },
   })
 }
 
-/**
- * Leave a team. STILL optimistic — leaving is entirely yours to do, so the
- * result is predictable and instant feedback costs nothing.
- */
 export function useLeaveTeam(teamId: string) {
   const queryClient = useQueryClient()
   const showToast = useUiStore((state) => state.showToast)
@@ -131,8 +92,8 @@ export function useLeaveTeam(teamId: string) {
 
   const removeMember = (member: TeamMember): TeamUpdater => (team) => ({
     ...team,
-    // New array, never `.splice()`. A mutated array is `===` to itself, so
-    // React concludes nothing changed and the roster does not re-render.
+    // New array, never splice: a mutated array is === to itself, so React
+    // concludes nothing changed and the roster never re-renders.
     members: team.members.filter((m) => m.id !== member.id),
     memberCount: team.memberCount - 1,
   })
@@ -143,7 +104,7 @@ export function useLeaveTeam(teamId: string) {
     onMutate: async () => {
       if (!user) return
 
-      // Cancel in-flight refetches first, or one can land after our optimistic
+      // Cancel in-flight refetches first, or one can land after the optimistic
       // write and silently overwrite it.
       await queryClient.cancelQueries({ queryKey: teamKeys.all })
 
@@ -163,8 +124,7 @@ export function useLeaveTeam(teamId: string) {
       if (context) {
         restoreTeamCaches(queryClient, teamId, context)
       }
-      // e.g. "A captain cannot leave their own team" — a rule the client
-      // cannot explain on its own.
+      // e.g. "A captain cannot leave their own team".
       showToast(error.message, 'error')
     },
 

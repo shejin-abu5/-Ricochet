@@ -2,15 +2,8 @@ import { authHeaders } from '../../../shared/api/authHeaders'
 import type { PlayerProfile } from '../types'
 import type { Team } from '../../teams/types'
 
-/**
- * Raw fetch calls for the profile. Knows HTTP, knows nothing about React —
- * the same split as every other api/ file in this codebase.
- *
- * Neither function takes a user id. Both are "/me" endpoints: the server reads
- * the token and answers about whoever that is. No id in the URL means no id to
- * tamper with, and no id for the client to plumb around. See the handler
- * comment in mocks/handlers.ts for the full reasoning.
- */
+// Both are "/me" endpoints: the server reads the token and answers about
+// whoever that is. No id in the URL means no id to tamper with.
 
 export async function fetchMyProfile(): Promise<PlayerProfile> {
   const response = await fetch('/api/me', { headers: authHeaders() })
@@ -23,12 +16,10 @@ export async function fetchMyProfile(): Promise<PlayerProfile> {
 }
 
 /**
- * The teams I'm on.
+ * The caller's teams.
  *
- * Returns `Team` — the same type the teams feature uses — because it is the
- * same entity, just filtered differently. Inventing a `MyTeam` type here would
- * mean TeamCard could not render these, and TeamCard is exactly what the
- * profile wants to render.
+ * Returns `Team` rather than a narrower MyTeam, because it is the same entity
+ * filtered differently — and TeamCard is exactly what the profile renders.
  */
 export async function fetchMyTeams(): Promise<Team[]> {
   const response = await fetch('/api/me/teams', { headers: authHeaders() })

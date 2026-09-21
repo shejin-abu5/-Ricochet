@@ -15,11 +15,6 @@ const dateOptions = [
   { value: 'week', label: 'This week' },
 ] as const
 
-/**
- * A single filter chip. Pulled out as its own tiny component because we
- * render it seven times below — and because "how does a chip look when
- * active" is now defined in exactly one place.
- */
 function Chip({
   label,
   isActive,
@@ -33,23 +28,14 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      // aria-pressed tells screen readers this is a toggle and whether it's
-      // currently on. Colour alone doesn't communicate state to everyone.
+      // aria-pressed marks this as a toggle and reports its state; colour alone
+      // doesn't communicate "selected" to everyone.
       aria-pressed={isActive}
-      /**
-       * The active chip is a TINT (bg-primary/10 + text-primary), not a solid
-       * lime fill. The reference fills it, but there's a row of these sitting
-       * directly above a grid of cards — a saturated block of #d2ff00 that
-       * wide is genuinely hard on the eyes, and it out-shouts the actual
-       * primary action on the page.
-       *
-       * The tint still reads unambiguously as "selected": it's the only chip
-       * with any colour in it at all. See the rule in Badge.tsx.
-       *
-       * min-h-9 keeps the chip a usable tap target — the reference's chips are
-       * visually short, so the height comes from padding rather than a taller
-       * pill, which keeps the proportions right while staying tappable.
-       */
+      // A tint rather than the reference's solid lime fill: a row of saturated
+      // #d2ff00 sitting above a card grid out-shouts the page's actual primary
+      // action. Being the only chip with any colour still reads as selected.
+      // min-h-9 keeps the tap target usable while the padding holds the
+      // reference's short proportions.
       className={`min-h-9 shrink-0 whitespace-nowrap rounded-pill px-4 text-meta transition-colors ${
         isActive
           ? 'bg-primary/10 font-medium text-primary'
@@ -67,11 +53,8 @@ export function MatchFilters({
   onSearchChange,
   onFilterChange,
 }: MatchFiltersProps) {
-  /**
-   * Chips TOGGLE: tapping the active one clears it. Passing `undefined`
-   * removes that filter entirely (see DiscoverPage — undefined values get
-   * deleted from the URL rather than written as empty strings).
-   */
+  // Chips toggle: tapping the active one passes undefined, which DiscoverPage
+  // deletes from the URL rather than writing as an empty param.
   const toggleFormat = (format: MatchFormat) => {
     onFilterChange({ ...filters, format: filters.format === format ? undefined : format })
   }
@@ -80,6 +63,7 @@ export function MatchFilters({
     onFilterChange({ ...filters, date: filters.date === date ? undefined : date })
   }
 
+<<<<<<< HEAD
   const noFilters = !filters.format && !filters.date
 
   return (
@@ -92,24 +76,75 @@ export function MatchFilters({
         aria-label="Search matches"
         className="min-h-11 w-full rounded-control border border-border bg-raised px-3 text-body text-content placeholder:text-content-faint"
       />
+=======
+  /**
+   * Translates between the dropdown's three values and the filter object's two
+   * plus absence. A <select> must render something, so it needs an explicit
+   * 'all'; the filter object already spells "don't narrow" as `undefined`.
+   *
+   * Converting here keeps 'all' out of storage, which is what lets DiscoverPage's
+   * falsy-value deletion strip ?show= from the URL on its own.
+   */
+  const handleShowChange = (next: QuickFilter) => {
+    onFilterChange({ ...filters, show: next === 'all' ? undefined : next })
+  }
 
-      {/**
-       * overflow-x-auto so the chip row scrolls sideways on a narrow phone
-       * instead of wrapping into a tall stack that pushes the list down.
-       *
-       * [scrollbar-width:none] hides the scrollbar itself — on a short row of
-       * chips it's visual noise, and the row's own overflow is obvious from
-       * the half-cut chip at the edge.
-       */}
+  /**
+   * `show` has to be counted here, or the "All matches" chip sits active while
+   * the dropdown quietly hides half the list.
+   *
+   * Standing maintenance cost: a new filter must be added here, nothing errors
+   * if you forget, and the only symptom is a chip that lies. Twin of
+   * `hasFilters` in DiscoverPage.tsx.
+   */
+  const noFilters = !filters.format && !filters.date && !filters.show
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* The dropdown stays out of the chip row below, which is overflow-x-auto:
+          a select inside it can scroll out of reach, and dragging to open the
+          native picker fights the horizontal scroll gesture.
+
+          flex-1 on the input, shrink-0 on the select, so the search box is what
+          gives up width — it degrades gracefully, a clipped dropdown label
+          doesn't. */}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input
+          type="search"
+          value={searchValue}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search by title or location"
+          aria-label="Search matches"
+          className="min-h-11 w-full flex-1 rounded-control border border-border bg-raised px-3 text-body text-content placeholder:text-content-faint"
+        />
+
+        <MatchQuickFilter
+          value={filters.show ?? 'all'}
+          onChange={handleShowChange}
+          className="shrink-0 sm:w-48"
+        />
+      </div>
+>>>>>>> parent of bc50764 (Revert "polish comp")
+
+      {/* Scrolls sideways on a narrow phone rather than wrapping into a tall
+          stack that pushes the list down. The scrollbar is hidden because the
+          half-cut chip at the edge already signals the overflow. */}
       <div
         role="group"
         aria-label="Filter matches"
         className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]"
       >
+<<<<<<< HEAD
         {/* "All matches" is a chip like the others, active when nothing else
             is — matching the reference. It gives people an obvious way BACK to
             the unfiltered list, rather than having to remember that tapping an
             active chip clears it. */}
+=======
+        {/* An explicit way back to the unfiltered list, rather than relying on
+            people remembering that tapping an active chip clears it. It clears
+            `show` too, so it can't leave the dropdown narrowing a list it
+            claims is unfiltered. */}
+>>>>>>> parent of bc50764 (Revert "polish comp")
         <Chip
           label="All matches"
           isActive={noFilters}

@@ -11,15 +11,7 @@ import { InvitePlayerPanel } from './InvitePlayerPanel'
 import { TeamOptionsForm } from './TeamOptionsForm'
 import { isCaptain } from '../types'
 
-/**
- * A section heading + card, repeated four times on this page. Extracted here
- * rather than copy-pasted because the page is literally a list of these — the
- * moment a shape appears four times in one file, it's a component.
- *
- * Local to this file (not exported, not in shared/) because nothing else needs
- * it yet. Same rule as always: extract on the second use, promote to shared/
- * on the second CONSUMER.
- */
+/** Heading + card, repeated four times below. Local until a second page wants it. */
 function Section({
   title,
   description,
@@ -55,30 +47,14 @@ function ManageSkeleton() {
 }
 
 /**
- * /teams/:id/manage — the captain's page.
+ * /teams/:id/manage — the captain's page (docs/03 §4).
  *
- * Everything a captain does lives here instead of being stacked onto the team
- * profile: join requests, inviting players, upcoming tournaments, and team
- * settings. The design brief (docs/03 §4) asks for exactly this — "captain sees
- * an extra Manage tab" — and the profile page stays readable for the people
- * who mostly visit it, which is everyone else.
- *
- * ============================================================
- *  ROUTE GUARDS CAN ONLY CHECK WHAT THEY KNOW SYNCHRONOUSLY
- * ============================================================
- *
- * <ProtectedRoute> keeps guests out, because "am I logged in?" is answered
- * instantly by the Zustand store. It CANNOT keep non-captains out, because
- * "am I the captain of team t3?" requires fetching team t3 first.
- *
- * So the check has to happen here, after the query resolves — which means
- * accepting that a non-captain briefly sees a loading skeleton before being
- * redirected. That's unavoidable in a client-side SPA, and it's fine, because
- * the skeleton reveals nothing.
- *
- * What makes it SAFE is not this component. It's that every endpoint behind
- * these panels independently returns 403 to a non-captain. This redirect is
- * politeness; the server is the security.
+ * The captaincy check lives in the component, not in a route guard:
+ * <ProtectedRoute> can answer "am I logged in?" from the store synchronously,
+ * but "am I captain of t3?" needs t3 fetched first. So a non-captain briefly
+ * sees a skeleton before the redirect — unavoidable in a client-side SPA, and
+ * harmless, since the skeleton reveals nothing and every endpoint behind these
+ * panels 403s independently.
  */
 export function ManageTeamPage() {
   const { id = '' } = useParams()
@@ -115,12 +91,8 @@ export function ManageTeamPage() {
 
   const youAreCaptain = isCaptain(team, currentUserId)
 
-  /**
-   * `replace` swaps this URL in history instead of adding to it. Without it,
-   * the back button would return here, redirect again, and trap the user in a
-   * loop they cannot escape by going back — a small detail that makes an app
-   * feel broken.
-   */
+  // `replace`, or the back button lands here, redirects again, and traps the
+  // user in a loop.
   if (!youAreCaptain) return <Navigate to={`/teams/${team.id}`} replace />
 
   return (
@@ -141,20 +113,17 @@ export function ManageTeamPage() {
         </div>
       </div>
 
-      {/* 1 — requests coming IN from players. */}
       <Section title="Join requests" description="Players who asked to join.">
         <JoinRequestsPanel team={team} isCaptain={youAreCaptain} />
       </Section>
 
-      {/* 2 — invites going OUT from the captain. The mirror of the above:
-             same table, opposite direction. See docs/09. */}
+      {/* The mirror of the above: same table, opposite direction. */}
       <Section title="Invite a player" description="Search and send an invite.">
         <InvitePlayerPanel team={team} />
       </Section>
 
-      {/* 3 — Phase 5. An honest placeholder: it shows the shape the section
-             will take and says plainly that it isn't built, rather than
-             pretending with fake rows or a button that does nothing. */}
+      {/* Placeholder that states plainly it is unbuilt, rather than showing
+          fake rows or a button that does nothing. */}
       <Section
         title="Upcoming tournaments"
         description="Tournaments this team has entered."
@@ -168,7 +137,6 @@ export function ManageTeamPage() {
         </div>
       </Section>
 
-      {/* 4 — team settings. */}
       <Section title="Team options" description="Only you can change these.">
         <div className="mt-3">
           <TeamOptionsForm team={team} />

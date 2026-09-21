@@ -27,23 +27,13 @@ function TeamCardSkeleton() {
 /**
  * /teams — browse every team.
  *
- * Search lives in the URL, exactly as on DiscoverPage: /teams?q=kochi is a
- * shareable link, the back button steps through searches, and a refresh keeps
- * them. The input itself stays in local state and syncs to the URL through
- * useDeferredValue, so typing doesn't push one history entry per letter.
+ * Search lives in the URL so /teams?q=kochi is shareable and the back button
+ * steps through searches. The input itself stays local and syncs through
+ * useDeferredValue, so typing does not push one history entry per letter.
  *
- * ---- A JUDGEMENT CALL WORTH EXPLAINING ----
- *
- * DiscoverPage hands its four list states (loading / error / empty / success)
- * to a separate MatchList component. This page renders them inline instead.
- *
- * Not an inconsistency — MatchList was extracted because a SECOND screen needs
- * it (a team's upcoming matches, Phase 3c). Nothing else renders a team list
- * yet, so extracting now would be inventing a reusable component with one
- * caller and guessing at its props.
- *
- * Same rule that moved `initials()` into Avatar.tsx this phase: extract on the
- * second use, not the first. Guessing early usually produces the wrong seams.
+ * The four list states are rendered inline rather than extracted the way
+ * MatchList was: MatchList earned extraction because a second screen needs it,
+ * and nothing else renders a team list yet.
  */
 export function TeamsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -57,7 +47,7 @@ export function TeamsPage() {
     const trimmed = deferredSearch.trim()
     const current = searchParams.get('q') ?? ''
 
-    // Guard against the effect re-triggering itself forever.
+    // Without this guard the write re-renders, which re-runs the effect.
     if (trimmed === current) return
 
     const next = new URLSearchParams(searchParams)
@@ -72,21 +62,9 @@ export function TeamsPage() {
 
   const { data: teams, isPending, isError, isFetching, refetch } = useTeams({ q })
 
-  /**
-   * ---- THE BADGE COUNT IS DERIVED, NOT STORED ----
-   *
-   * The tempting design is a `pendingInviteCount` in a Zustand store so the
-   * badge can read it "cheaply". Don't. That's a hand-maintained copy of
-   * server data, and it goes wrong the moment an invite is answered anywhere
-   * else — another tab, another device, or the inbox page in this same app.
-   *
-   * Instead the badge calls the SAME hook the inbox page calls. Identical
-   * query key, so this does not fetch twice — it reads the cache the other
-   * one filled, and both update together when the mutation invalidates it.
-   *
-   * That's the point docs/02-app-flow.md flow 8 makes about notification
-   * counts: derive from the query, never duplicate into client state.
-   */
+  // Same hook and key as the inbox page, so this reads that cache rather than
+  // fetching again, and both update together when a mutation invalidates it.
+  // Derived rather than mirrored into Zustand — see docs/02 flow 8.
   const { data: invites } = useMyInvites()
   const pendingInvites = invites?.length ?? 0
 
@@ -99,8 +77,7 @@ export function TeamsPage() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {/* Hidden entirely at zero rather than showing "Invites 0" — an
-              empty inbox isn't something to advertise. */}
+          {/* Hidden at zero rather than showing "Invites 0". */}
           {pendingInvites > 0 && (
             <Link
               to="/invites"
@@ -131,7 +108,6 @@ export function TeamsPage() {
         className="rounded-control border border-border-strong px-3 py-2 text-meta outline-none focus:ring-2 focus:ring-primary/40"
       />
 
-      {/* 1. LOADING */}
       {isPending && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -140,7 +116,6 @@ export function TeamsPage() {
         </div>
       )}
 
-      {/* 2. ERROR — recoverable, never a dead end. */}
       {isError && (
         <EmptyState
           title="Couldn't load teams"
@@ -153,7 +128,7 @@ export function TeamsPage() {
         />
       )}
 
-      {/* 3. EMPTY — different words from the error above, on purpose. */}
+      {/* Deliberately different words from the error above. */}
       {!isPending && !isError && teams?.length === 0 && (
         <EmptyState
           title="No teams found"
@@ -168,7 +143,6 @@ export function TeamsPage() {
         />
       )}
 
-      {/* 4. SUCCESS */}
       {!isPending && !isError && teams && teams.length > 0 && (
         <div
           className={`grid grid-cols-1 gap-3 sm:grid-cols-2 transition-opacity ${
@@ -179,9 +153,7 @@ export function TeamsPage() {
             <TeamCard
               key={team.id}
               team={team}
-              // Derived on the fly from data we already have. No "myTeams"
-              // query, no flag stored anywhere — see the note on captainId in
-              // features/teams/types.ts.
+              // Derived — no "myTeams" query, no stored flag.
               isYourTeam={isCaptain(team, currentUserId)}
             />
           ))}
